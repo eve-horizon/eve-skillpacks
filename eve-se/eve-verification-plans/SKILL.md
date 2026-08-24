@@ -238,9 +238,13 @@ Verification often reveals issues. The fix/deploy loop:
 
 ```
 discover bug → fix code → commit → tag release-v* → push tag →
-  wait for CI (publish-images → infra dispatch → deploy) →
+  wait for CI to publish all seven service images →
+  instance owner bumps the pinned platform version and deploys from the instance repo →
   re-run failed scenario
 ```
+
+A source `release-v*` tag publishes artifacts only. It must not dispatch to or
+deploy a hosted instance.
 
 ### Local (k3d)
 

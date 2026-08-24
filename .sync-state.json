@@ -1,8 +1,15 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "b5ef3ea47cd8c1d0a4358448d9668bdf687f0ac8",
-  "last_synced_at": "2026-05-13T13:58:00Z",
+  "last_synced_commit": "cf720e26ee7fd9c4c9b13c590945f6603705b76b",
+  "last_synced_at": "2026-08-24T15:45:02Z",
   "sync_log": [
+    {
+      "commit": "cf720e26ee7fd9c4c9b13c590945f6603705b76b",
+      "commit_short": "cf720e2",
+      "synced_at": "2026-08-24T15:45:02Z",
+      "type": "oss-history-rebase",
+      "summary": "Rebased sync tracking onto the canonical public eve-horizon history, whose Initial public release commit does not contain the private-history b5ef3ea baseline. Audited the full public range through cf720e2: July refactors preserve the documented platform surface; the shipped OSS release cutover changes deployment ownership. Updated skillpacks to the three-repo publish-only model, removed repository_dispatch guidance, added canonical-repo guardrails, and made the scheduled source clone credential-free."
+    },
     {
       "commit": "b5ef3ea47cd8c1d0a4358448d9668bdf687f0ac8",
       "commit_short": "b5ef3ea",

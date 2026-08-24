@@ -156,7 +156,7 @@ CLI is a thin wrapper; all control flows through the API.
 | Agent runtime runs ALL agent jobs | Primary harness executor; worker is for builds/pipelines only |
 | Chat gateway + Slack mapping | Multi-tenant `team_id -> org_id` routing |
 | Repo-first agents sync | Deterministic config via `--ref` |
-| Two-repo deploy model | Source builds images, infra repo applies K8s manifests |
+| Three-repo hosted deploy model | Public source publishes artifacts; public infra is a template; each private instance owner explicitly rolls out a pinned version |
 | BuildKit-first builds | Replaced kaniko; reliable in-cluster container builds |
 | BYOK inference (no managed models) | Harnesses call providers directly via secrets; no proxy layer |
 | Per-org OAuth credentials | Orgs bring own Google/Slack app credentials; no cluster-level secrets |
@@ -303,7 +303,9 @@ Integration tests use API endpoints, not direct DB queries. Test and dev use sep
 
 | Repo | Expected Path | Purpose |
 |---|---|---|
-| deployment-instance-repo | `../deployment-instance` | K8s manifests, kustomize overlays, deploy automation |
+| eve-horizon | `../eve-horizon` | Canonical public platform source; publishes artifacts but never deploys instances |
+| eve-horizon-infra | `../eve-horizon-infra` | Public K8s/Terraform template for deployment instances |
+| deployment-instance-repo | `../deployment-instance` | Private instance config, secrets, pinned platform version, and deploy automation |
 | eve-horizon-starter | `../eve-horizon-starter` | Starter template for new Eve projects |
 | eve-horizon-fullstack-example | `../eve-horizon-fullstack-example` | Example fullstack app for deployment testing |
 | eve-skillpacks | `../eve-skillpacks` | Published skill packs referenced by `skills.txt` |
@@ -328,7 +330,12 @@ The standard deployment flow:
 2. **Release**: capture a deployable snapshot (SHA + manifest + digests).
 3. **Deploy**: apply release to an environment.
 
-Staging deploys use a **two-repo model**: source repo (`eve-horizon`) builds and pushes images on `release-v*` tags, then dispatches to the infra repo (`deployment-instance-repo`) which applies K8s manifests.
+Hosted platform releases use a **three-repo model**. The public source repo
+(`eve-horizon/eve-horizon`) publishes seven service images on a `release-v*`
+tag and stops. The public `eve-horizon/eve-horizon-infra` repo is the reusable
+template. A private deployment-instance repo pins the selected platform
+version and its owner performs the rollout. Source workflows must not hold
+cluster credentials or use `repository_dispatch` to deploy an instance.
 
 Pipelines orchestrate these steps as a job graph. See `references/builds-releases.md`.
 

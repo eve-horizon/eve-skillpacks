@@ -5,6 +5,22 @@
 - You need environment-specific diagnostics or service status during incident response.
 - You need K8s architecture behavior for local or staging deployments.
 
+## Platform Release Ownership
+
+Keep platform artifact publication separate from instance rollout:
+
+1. `eve-horizon/eve-horizon` publishes seven service images when a maintainer
+   pushes one explicit `release-v*` tag. Publishing does not deploy.
+2. `eve-horizon/eve-horizon-infra` supplies the public Terraform/Kustomize
+   template; it does not own a live environment.
+3. The private deployment-instance repo pins `platform.version`, owns cluster
+   credentials, and performs the rollout under its owner's runbook.
+
+Never add cluster credentials or `repository_dispatch` rollout coupling to the
+public source repo. For a hosted upgrade, verify the source publish first, then
+switch to the target instance repo, bump the pinned version, review the diff,
+and deploy from there.
+
 ## Deploy Error Classes (DeployFailure kinds)
 
 The deployer classifies deploy failures and writes the kind to both the attempt

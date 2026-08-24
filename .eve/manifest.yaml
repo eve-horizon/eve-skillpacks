@@ -37,7 +37,7 @@ workflows:
           prompt: |
             FIRST, before reading any files or instructions, run this command NOW:
 
-            git clone --depth=200 https://x-access-token:${GITHUB_TOKEN}@github.com/eve-horizon/eve-horizon.git .eve-horizon-src
+            git clone --depth=200 https://github.com/eve-horizon/eve-horizon.git .eve-horizon-src
 
             Wait for it to complete. If it fails, stop and report the error.
 

@@ -22,7 +22,8 @@ Staging is the default verification target. It matches the real user experience.
 
 ```
 discover bug → fix code → commit → tag release-v* → push tag →
-  wait for CI (publish-images → infra dispatch → deploy) →
+  wait for CI to publish all seven service images →
+  instance owner bumps the pinned version and deploys from the instance repo →
   re-run failed scenario
 ```
 
@@ -32,38 +33,42 @@ discover bug → fix code → commit → tag release-v* → push tag →
 # 1. Fix the code
 git add -A && git commit -m "fix: description of fix"
 
-# 2. Tag and push
+# 2. Tag and push one explicit ref (publishes artifacts; does not deploy)
 LAST_TAG=$(git tag --list 'release-v*' --sort=-version:refname | head -1)
 # Increment version (e.g., release-v0.1.241 → release-v0.1.242)
 NEXT_VERSION=$(echo "$LAST_TAG" | awk -F. '{print $1"."$2"."$3+1}')
-git tag "$NEXT_VERSION"
-git push origin main "$NEXT_VERSION"
+git tag -a "$NEXT_VERSION" -m "$NEXT_VERSION"
+git push origin "refs/tags/$NEXT_VERSION"
 
-# 3. Wait for deploy
-echo "Waiting for CI to build and deploy..."
-# Monitor: check GitHub Actions on both repos
+# 3. Wait for all seven images to publish
+echo "Waiting for CI to publish platform images..."
 # Source repo: publish-images workflow
-# Infra repo: deploy workflow (triggered via repository_dispatch)
 
-# 4. Verify deploy landed
+# 4. In the target deployment-instance repo, follow its owner-approved runbook
+# bin/eve-infra upgrade <version>
+# git diff
+# bin/eve-infra deploy
+
+# 5. Verify deploy landed
 eve system health --json
-kubectl -n eve get pods  # Check all pods are Running/Ready
+# Use the instance repo's wrapper and explicit kubeconfig/context for pod checks.
 
-# 5. Re-run the failed scenario
+# 6. Re-run the failed scenario
 ```
 
 ### Monitoring the Deploy
 
-Two repos are involved:
+Three repository roles are involved:
 
-1. **Source repo** (`eve-horizon`): `publish-images.yml` builds container images
-2. **Infra repo** (`deployment-instance-repo`): receives dispatch, applies k8s manifests
+1. **Public source** (`eve-horizon/eve-horizon`): `publish-images.yml` publishes seven service images and stops
+2. **Public infra template** (`eve-horizon/eve-horizon-infra`): reusable Terraform/Kustomize scaffold
+3. **Private deployment instance** (`<org>/<name>-eve-infra`): pins the platform version and owns rollout credentials
 
 ```bash
 # Check source repo workflow
 gh run list --repo eve-horizon/eve-horizon --workflow publish-images.yml --limit 3
 
-# Check infra repo workflow
+# After the instance owner starts a rollout, check that repo's workflow
 gh run list --repo your-org/deployment-instance-repo --limit 3
 ```
 
@@ -71,9 +76,9 @@ gh run list --repo your-org/deployment-instance-repo --limit 3
 
 | Phase | Duration |
 |-------|----------|
-| Image builds (6 services) | ~3-5 minutes |
-| Repository dispatch | ~10 seconds |
-| Infra apply + rollout | ~2-3 minutes |
+| Image builds (7 services) | ~3-5 minutes |
+| Instance version bump + approval | Owner-dependent |
+| Instance apply + rollout | ~2-3 minutes |
 | **Total** | **~5-8 minutes** |
 
 ## Local (k3d)
@@ -171,8 +176,8 @@ This scenario may require iteration. Follow the deploy cycle for your environmen
 
 ### Cloud (Staging)
 1. Fix code and commit
-2. Tag: `git tag release-v<next> && git push origin main release-v<next>`
-3. Wait ~5-8 minutes for CI
+2. Push one explicit `release-v<next>` tag and wait for all seven images
+3. Have the target instance owner bump and deploy the pinned version from the private instance repo
 4. Verify: `eve system health --json`
 5. Re-run from Phase N
 
