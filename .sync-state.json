@@ -1,8 +1,15 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "cf720e26ee7fd9c4c9b13c590945f6603705b76b",
-  "last_synced_at": "2026-08-24T15:45:02Z",
+  "last_synced_commit": "416bb755f0675d71ded45a8cf6338d1a90a9929f",
+  "last_synced_at": "2026-08-25T17:09:07Z",
   "sync_log": [
+    {
+      "commit": "416bb755f0675d71ded45a8cf6338d1a90a9929f",
+      "commit_short": "416bb75",
+      "synced_at": "2026-08-25T17:09:07Z",
+      "type": "incremental",
+      "summary": "6-commit CLI, onboarding, and OSS release-alignment sync. Documented eve init's guaranteed main branch and per-commit fallback Git identity; pinned onboarding CLI/skills tools; and captured SHA-pinned AgentPack checkout installation, four-agent defaults, private-skill exclusion, and manifest-pack installer failure propagation. Corrected non-mutating manifest validation, seven-service public release inventory, canonical worker/separate toolchains, retired worker/migrate publishing paths, and Pi Phase 1 guidance. Moved full-stack implementation detail into a progressive reference, made source paths state-driven, and added read-only public repository/source consistency CI while retaining historical provenance guardrails."
+    },
     {
       "commit": "cf720e26ee7fd9c4c9b13c590945f6603705b76b",
       "commit_short": "cf720e2",
@@ -66,41 +73,6 @@
       "synced_at": "2026-03-18T12:59:00Z",
       "type": "incremental",
       "summary": "1-commit incremental sync — Cloud FS per-mount file operations added at the API layer (mount browse by path, file metadata, download, upload, folder creation). Skillpacks updated to capture the new API surface and align Cloud FS examples with the current CLI."
-    },
-    {
-      "commit": "332486cbe7bb9b73bdcf33e538f36625f90c9834",
-      "commit_short": "332486c",
-      "synced_at": "2026-02-26T10:00:00Z",
-      "type": "incremental",
-      "summary": "32-commit incremental sync — object store + org filesystem (presigned URLs, share tokens, public paths, app object stores), Codex harness fixes (auth, sandbox, streaming), CLI improvements (admin users, --version, first-experience auth, log normalization), worker image tooling (gh, jq)"
-    },
-    {
-      "commit": "e95a226bd3f13a2c4b2ecfc4c5e6fd5e9d61dd05",
-      "commit_short": "e95a226",
-      "synced_at": "2026-02-28T12:00:00Z",
-      "type": "incremental",
-      "summary": "33-commit incremental sync — Slack integration (gateway simulate, provider bootstrap, OAuth install, Block Kit, identity resolution, rate limiting), app SSO (@eve-horizon/auth + @eve-horizon/auth-react, eveUserAuth middleware), GitHub webhook setup, terraform-only infra policy, CLI (chat simulate gateway routing, identity link, integrations expansion, ollama pull/models)"
-    },
-    {
-      "commit": "b3ef2d1d4929fc60664d75b7796fc5181295745e",
-      "commit_short": "b3ef2d1",
-      "synced_at": "2026-03-02T16:00:00Z",
-      "type": "incremental",
-      "summary": "11-commit incremental sync — Eve Auth SDK published to npm (@eve-horizon/auth), full SDK system doc (373 lines), eve-sdk overview doc, enriched user visibility (eve user show), admin membership table improvements, system health degraded-state handling. Sentinel-mgr SSO migration patterns distilled into auth skills."
-    },
-    {
-      "commit": "e893b2a269382768e78facba19be09f86c4b25b4",
-      "commit_short": "e893b2a",
-      "synced_at": "2026-03-04T12:00:00Z",
-      "type": "incremental",
-      "summary": "20-commit incremental sync — Pi coding agent harness (Phase 1), worker org-fs parity (.org/ mount in all execution paths), Pi skill discovery, eve-worker CLI removal, ECR public auto-auth for eve local up, auth-react SSO redirect fix"
-    },
-    {
-      "commit": "b48c37e7e553f56eabaa47c5edeca04ff95c3fe2",
-      "commit_short": "b48c37e",
-      "synced_at": "2026-03-18T12:00:00Z",
-      "type": "incremental",
-      "summary": "120-commit incremental sync — inference simplification (BYOK, ollama/models removed), document ingestion pipeline (ingest CLI, PDF, media processing, agentpack), chat completeness (outbound delivery, progress updates, file materialization, agent aliases, staged dispatch), production hardening (8 features: dedup, retry, cost, observability), private endpoints (Tailscale), worker toolchain-on-demand, app CLI framework, Cloud FS (Google Drive), per-org OAuth (BYOA), managed DB snapshots, invoke parity (shared module), workflow event triggers, step optimization, app undeploy/delete, GCS storage"
     }
   ]
 }

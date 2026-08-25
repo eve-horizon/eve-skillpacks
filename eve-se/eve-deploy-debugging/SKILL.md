@@ -159,20 +159,17 @@ Common build failures:
 - **Multi-stage build failure**: BuildKit handles these correctly; Kaniko may have issues
 - **Workspace errors**: Build context not available — check `eve build diagnose`
 
-## Worker Image Registry
+## Public Runner Image
 
-Eve publishes worker images to the configured private registry with these variants:
+The public runner is
+`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`. It is one of
+the seven images published by `release-v*` alongside `api`, `sso`, `gateway`,
+`agent-runtime`, `orchestrator`, and `dashboard`. Pin the same platform version
+used by the rest of the deployment through `EVE_RUNNER_IMAGE`.
 
-| Variant | Contents |
-|---------|----------|
-| `base` | Node.js, git, standard CLI tools |
-| `python` | Base + Python runtime |
-| `rust` | Base + Rust toolchain |
-| `java` | Base + JDK |
-| `kotlin` | Base + Kotlin compiler |
-| `full` | All runtimes combined |
-
-**Version pinning**: Use semver tags (e.g., `v1.2.3`) in production. Use SHA tags or `:latest` in development.
+There are no supported public `worker-full`, `worker-python`, or other worker
+variant release tags. Toolchains are separate images and are provisioned only
+for jobs that declare them.
 
 ## Platform Environment Variables
 
@@ -239,7 +236,9 @@ Diagnostics check: operator status, K8s service existence, DNS resolution, TCP c
 
 ## Worker Toolchain-on-Demand
 
-The default worker image is `base` (~800MB with Node.js, git, and all harnesses). Toolchains (Python, Rust, Java, Kotlin, media) are injected on-demand via init containers rather than bundled in a fat image.
+The canonical worker contains the runner and harnesses. Toolchains (Python,
+Rust, Java, Kotlin, media) are separate images injected on demand via init
+containers rather than bundled into alternate worker variants.
 
 **Deployment impact**: If an agent job needs toolchains, the runner pod starts init containers that copy toolchain binaries from small pre-built images. First pull adds ~5-10s; subsequent jobs on the same node use cached images.
 
@@ -252,10 +251,13 @@ The default worker image is `base` (~800MB with Node.js, git, and all harnesses)
 # If a toolchain binary is missing at runtime:
 # 1. Verify agent config has the toolchain declared
 # 2. Check init container logs on the runner pod
-# 3. Verify toolchain images are available in the registry
+# 3. Verify the configured toolchain image prefix/tag resolves in the registry
 ```
 
-To use the full image (all toolchains bundled): set `EVE_WORKER_VARIANT=full` or use `--variant full` locally.
+Do not work around a missing toolchain by selecting a worker variant. Verify
+the agent/workflow declaration, inspect runner init-container logs and
+`runtime_meta.toolchains`, then check `EVE_TOOLCHAIN_IMAGE_PREFIX` and
+`EVE_TOOLCHAIN_IMAGE_TAG`.
 
 ## App Undeploy/Delete Lifecycle
 

@@ -15,6 +15,23 @@
 - Confirm manifest build entries and target services.
 - Confirm which artifact (image digest, build/run id, or release id) you need to inspect.
 
+## Platform Artifact Publishing
+
+The canonical public source repository publishes artifacts but never deploys a
+hosted instance:
+
+- `release-v*` publishes seven service images: `api`, `sso`, `gateway`,
+  `agent-runtime`, `orchestrator`, `worker`, and `dashboard`.
+- `toolchain-images/v*` independently publishes
+  `toolchain-{python,media,rust,java,kotlin}`.
+- CLI, auth SDK, and chat SDK packages use their own npm tag prefixes.
+
+The `worker-images/v*` and `eve-migrate/v*` publishing paths were removed on
+2026-08-25. They are not supported release surfaces. Deployment instances pin
+all seven service images to one platform version; hosted database migrations
+run from that versioned `api` image. Toolchain prefix/tag settings are separate
+from the platform version.
+
 ## Build Model
 
 Builds are first-class primitives that track container image construction. The model is three-tier:

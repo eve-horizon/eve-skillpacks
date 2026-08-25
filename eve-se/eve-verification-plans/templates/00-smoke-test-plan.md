@@ -37,6 +37,8 @@ TOKEN=$(eve auth token --raw)
 # Project variables — CUSTOMIZE THESE
 ORG_SLUG="your-org"
 PROJECT_SLUG="your-project"
+ORG_ID="org_xxx"
+PROJ_ID="proj_xxx"
 ENV_NAME="staging"  # or "test" for local
 ```
 
@@ -95,7 +97,7 @@ curl -s "${APP_SCHEME}://api.${APP_DOMAIN}/protected-endpoint" -w "\n%{http_code
 ```bash
 # Manifest exists and parses
 cat .eve/manifest.yaml | head -5
-eve project sync --dry-run
+eve manifest validate --project "$PROJ_ID" --path .eve/manifest.yaml
 
 # Check manifest structure
 cat .eve/manifest.yaml | yq '.name // .project'
@@ -113,7 +115,7 @@ eve secrets list --org $ORG_ID --project $PROJ_ID --json | jq 'length'
 ```
 
 **Expected:**
-- Manifest exists and `eve project sync --dry-run` succeeds
+- Manifest exists and the non-persisting `eve manifest validate` succeeds
 - Uses `name` field (flag if using legacy `project`)
 - Services and environments are declared
 - No hardcoded secrets in source code

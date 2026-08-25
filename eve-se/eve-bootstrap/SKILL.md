@@ -24,7 +24,7 @@ eve --version
 If this fails, install the CLI first:
 
 ```bash
-npm install -g @anthropic/eve-cli
+npm install -g @eve-horizon/cli@0.2.73
 ```
 
 ## Step 2: Create Profile

@@ -119,7 +119,7 @@ Each scenario is a self-contained markdown document:
 
 Before testing functionality, verify the app is built the Eve way. Every verification suite starts with this checklist:
 
-- [ ] `.eve/manifest.yaml` exists and passes `eve project sync --dry-run`
+- [ ] `.eve/manifest.yaml` exists and passes `eve manifest validate --project <project_id> --path .eve/manifest.yaml`
 - [ ] Manifest follows current conventions (`name` preferred over legacy `project`)
 - [ ] All services have health endpoints reachable via Eve ingress
 - [ ] CLI can interact with every API endpoint (no "UI-only" functionality)

@@ -587,7 +587,7 @@ services:
       permissions: [jobs:write, events:write, threads:write]
 ```
 
-Use this for app -> Eve API calls (creating jobs, emitting events, updating threads). For the full schema and call patterns, see [eve-read-eve-docs/references/secrets-auth.md](../eve-read-eve-docs/references/secrets-auth.md) and [eve-read-eve-docs/references/manifest.md](../eve-read-eve-docs/references/manifest.md).
+Use this for app -> Eve API calls (creating jobs, emitting events, updating threads). For the full schema and call patterns, see [eve-read-eve-docs/references/secrets-auth.md](../../eve-work/eve-read-eve-docs/references/secrets-auth.md) and [eve-read-eve-docs/references/manifest.md](../../eve-work/eve-read-eve-docs/references/manifest.md).
 
 ## BYOK Model (LLM API Keys)
 

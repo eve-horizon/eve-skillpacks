@@ -538,30 +538,28 @@ deploy:
 | `no pg_hba.conf entry for host ... SSL off` | URL was rewritten with `sslmode=disable` by the old resolver | Confirm `DATABASE_URL` carries `sslmode=verify-full`; the orchestrator now inherits sslmode from the source URL. |
 | Migration job fails but app pods connect | Job pod missing trust mount | Job render path also injects the bundle; re-deploy and check the Job pod spec. |
 
-## Worker Image Registry
+## Public Runner Image
 
-Pre-built images on public ECR eliminate local builds and ensure consistent toolchains.
+The supported public runner is:
 
-| Image | Public ECR Path | Contents |
-|-------|-----------|----------|
-| base | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-base:<ver>` | Node.js, worker harness, base utilities |
-| python | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-python:<ver>-py3.11` | Python 3.11, pip, uv |
-| rust | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-rust:<ver>-rust1.75` | Rust 1.75, cargo |
-| java | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-java:<ver>-jdk21` | OpenJDK 21 |
-| kotlin | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-kotlin:<ver>-kotlin2.0-jdk21` | Kotlin 2.0 + JDK 21 |
-| full | `public.ecr.aws/w7c4v0w3/eve-horizon/worker-full:<ver>` | All toolchains (default) |
+`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`
 
-### Versioning + Pinning
+`release-v*` publishes seven versioned service images: `api`, `sso`,
+`gateway`, `agent-runtime`, `orchestrator`, `worker`, and `dashboard`. Configure
+the runner with `EVE_RUNNER_IMAGE` and pin it to the same platform release as
+the other services.
 
-- **Version tags**: `0.1.0`, `0.1.0-py3.11` (from git tag `worker-images/vX.Y.Z`).
-- **SHA tags**: `sha-a1b2c3d` (every build, for commit-level pinning).
-- **Multi-arch**: `linux/amd64` + `linux/arm64`.
-
-Configure via `EVE_RUNNER_IMAGE` on the worker deployment. Pin to semantic versions in production. Use SHA tags or `latest` for dev/CI only.
+The retired `worker-images.yml` tag family (`worker-base`, `worker-full`,
+language variants, and `worker-images/v*`) is not a release contract. Toolchain
+images are separate from the runner image. The standalone `migrate` image is
+also not published by `release-v*`; the hosted deployment migration job uses
+the versioned API image, while the local source stack uses its own worker
+asset.
 
 ## Worker Toolchain-on-Demand
 
-The default worker runs the `base` image (~800MB: Node.js, git, harnesses). Toolchains (Python, Rust, Java, Kotlin, media/ffmpeg) are injected via init containers only when needed.
+The canonical worker runs the runner and harnesses. Toolchains (Python, Rust,
+Java, Kotlin, media/ffmpeg) are injected via init containers only when needed.
 
 ### How Init Container Injection Works
 
@@ -600,11 +598,11 @@ export PATH="${EVE_TOOLCHAIN_PATHS}:${PATH}"
 
 ### Deployment Impact
 
-- Default worker variant changed from `full` to `base` (CI and local k3d)
-- `EVE_WORKER_VARIANT=full` restores the old fat image if needed
-- Agents without `toolchains` field are unaffected (no init containers)
-- Configure toolchain image prefix/tag: `EVE_TOOLCHAIN_IMAGE_PREFIX`, `EVE_TOOLCHAIN_IMAGE_TAG`
-- Local k3d: build + import toolchain images with `./bin/eh k8s image --toolchains`
+- Agents without a `toolchains` field do not get toolchain init containers.
+- Configure toolchain image prefix/tag with `EVE_TOOLCHAIN_IMAGE_PREFIX` and
+  `EVE_TOOLCHAIN_IMAGE_TAG`.
+- Local k3d can build and import toolchain images with
+  `./bin/eh k8s image --toolchains`.
 
 ### Debugging Toolchain Issues
 
@@ -612,7 +610,8 @@ If a job fails with "command not found" for a toolchain binary:
 1. Check the agent config declares `toolchains: [<name>]`
 2. Check init container logs: `kubectl -n eve logs <pod> -c tc-<name>`
 3. Verify the toolchain image exists: `docker pull <prefix><name>:<tag>`
-4. Fallback: set `EVE_WORKER_VARIANT=full` on the worker deployment
+4. Inspect `eve job diagnose <job-id>` for `runtime_meta.toolchains` and
+   provisioning logs; do not switch to an obsolete worker variant
 
 ## Docker Compose Runtime (Dev Only)
 

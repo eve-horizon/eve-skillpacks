@@ -9,8 +9,8 @@ Eve-compatible apps follow specific conventions. Conformance checks verify the a
 ## Manifest Conformance
 
 ```bash
-# Manifest exists and parses
-eve project sync --dry-run
+# Validate without persisting manifest changes (requires an existing readable project)
+eve manifest validate --project "$PROJ_ID" --path .eve/manifest.yaml
 
 # Check manifest structure
 cat .eve/manifest.yaml | yq '.name'           # Should exist (preferred over legacy 'project')
@@ -21,7 +21,7 @@ cat .eve/manifest.yaml | yq '.environments'   # Environments declared
 ### What to Check
 
 - [ ] `.eve/manifest.yaml` exists at project root
-- [ ] `eve project sync --dry-run` succeeds without errors
+- [ ] `eve manifest validate --project "$PROJ_ID" --path .eve/manifest.yaml` succeeds without errors
 - [ ] Uses `name` field (not legacy `project` — tolerate but flag)
 - [ ] All deployed services are declared in `services:`
 - [ ] Environments match deployment targets (e.g., `staging`, `production`)
@@ -30,7 +30,12 @@ cat .eve/manifest.yaml | yq '.environments'   # Environments declared
 
 ### Why This Matters
 
-The manifest is the single source of truth for what Eve deploys. If a service exists in k8s but not in the manifest, it was deployed manually — a conformance violation.
+The manifest is the single source of truth for what Eve deploys. `manifest
+validate` runs parsing, schema/coherence, template, and secret-reference checks
+without saving the manifest. It needs an existing project with read access, so
+keep the local `yq` checks as a structural fallback before project creation. If
+a service exists in k8s but not in the manifest, it was deployed manually — a
+conformance violation.
 
 ## CLI Parity
 

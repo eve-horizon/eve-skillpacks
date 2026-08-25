@@ -94,7 +94,7 @@ New agent-execution features go in the shared module, never in a single runtime.
 | `gemini`   | `gemini`  | --       | @google/gemini-cli                                   |
 | `code`     | `code`    | `coder`  | @just-every/code. Use `coder` on host to avoid VS Code clash |
 | `codex`    | `codex`   | --       | @openai/codex                                        |
-| `pi`       | `pi`      | --       | Pi CLI (integration in progress)                     |
+| `pi`       | `pi`      | --       | Supported BYOK multi-provider harness; managed-model routing is pending |
 
 Do not parse `harness:variant` syntax. Use `harness_options.variant` instead.
 
@@ -160,15 +160,18 @@ When a job has `git` configuration, the worker:
 
 ## Worker Image and Toolchains
 
-The default worker image is `base` (~800MB), which includes Node.js, git, gh, kubectl,
-kaniko, buildctl, and all harness binaries (claude-code, codex, gemini-cli, cc-mirror,
-code, bd, skills). Most agent jobs need nothing beyond this.
+The public runner is
+`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`. It contains
+the runner and harness binaries and is one of the seven service images
+published by `release-v*`. Pin it through `EVE_RUNNER_IMAGE` to the deployment's
+platform version. Most agent jobs need nothing beyond this image.
 
 ### Toolchain-on-Demand
 
-Toolchains (Python, Rust, Java, Kotlin, ffmpeg/whisper) are delivered as init containers
-rather than baked into the worker image. This replaces the previous `full` image (2.6GB)
-approach.
+Toolchains (Python, Rust, Java, Kotlin, ffmpeg/whisper) are delivered as
+separately published images and injected as init containers rather than baked
+into alternate worker images. Public `worker-full` and language-specific worker
+variants are obsolete, unsupported release paths.
 
 Available toolchains:
 
@@ -218,9 +221,9 @@ workflows:
         toolchains: [media, python]    # override agent default
 ```
 
-Toolchain precedence: workflow step `toolchains` overrides agent `toolchains` overrides
-empty (base-only). The `full` image remains available via `EVE_WORKER_VARIANT=full` for
-backwards compatibility.
+Toolchain precedence: workflow step `toolchains` overrides agent `toolchains`
+overrides empty (runner only). Do not select a worker variant as a fallback;
+diagnose provisioning and the configured toolchain prefix/tag.
 
 ### Inline Runtime Provisioning
 
@@ -460,17 +463,21 @@ code --ask-for-approval on-request --model <model> \
 
 ## Permission Policies
 
-| Policy      | mclaude/claude/zai                    | gemini                     | code/codex                      |
-|-------------|---------------------------------------|----------------------------|---------------------------------|
-| `default`   | `--permission-mode default`           | `--approval-mode default`  | `--ask-for-approval on-request` |
-| `auto_edit` | `--permission-mode acceptEdits`       | `--approval-mode auto_edit`| `--ask-for-approval on-failure` |
-| `never`     | `--permission-mode dontAsk`           | (fallback to default)      | `--ask-for-approval never`      |
-| `yolo`      | `--dangerously-skip-permissions`      | `--yolo`                   | `--ask-for-approval never`      |
+| Policy      | mclaude/claude/zai                    | gemini                     | code/codex                      | pi |
+|-------------|---------------------------------------|----------------------------|---------------------------------|----|
+| `default`   | `--permission-mode default`           | `--approval-mode default`  | `--ask-for-approval on-request` | autonomous; warning |
+| `auto_edit` | `--permission-mode acceptEdits`       | `--approval-mode auto_edit`| `--ask-for-approval on-failure` | autonomous; warning |
+| `never`     | `--permission-mode dontAsk`           | (fallback to default)      | `--ask-for-approval never`      | autonomous |
+| `yolo`      | `--dangerously-skip-permissions`      | `--yolo`                   | `--ask-for-approval never`      | autonomous |
 
 Sandbox flags applied automatically by `eve-agent-cli`:
 - Claude/mclaude/zai: `--add-dir <workspace>`
 - Code/Codex: `--sandbox workspace-write -C <workspace>`
 - Gemini: `--sandbox`
+
+Pi has no built-in permission gates. Select it only when autonomous execution
+is acceptable; `default` and `auto_edit` emit a warning rather than adding a
+gate.
 
 ---
 
@@ -672,7 +679,7 @@ in addition to the existing `cost-by-agent`.
 
 ```
 eve-agent-cli \
-  --harness <harness>           # mclaude, claude, zai, gemini, code, codex
+  --harness <harness>           # mclaude, claude, zai, gemini, code, codex, pi
   --permission <policy>         # default, auto_edit, never, yolo
   --output-format stream-json
   --workspace <workspacePath>

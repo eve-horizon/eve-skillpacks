@@ -82,7 +82,7 @@ eve org ensure test-org --slug test-org             # 3. Use the CLI
 
 **Phase**: Pre-MVP (K8s runtime + agent runtime + chat gateway + builds/deploy pipeline + auth/RBAC complete).
 
-**What exists**: monorepo with 6 services (API, orchestrator, worker, agent runtime, gateway, SSO). Database with orgs, projects, environments, jobs, attempts, agents, teams, threads, integrations, schedules. Full auth stack (SSH login, web auth via GoTrue + SSO broker, service principals, custom roles, access groups, project role resolution). RBAC with policy-as-code and default-deny data plane. Persistent environment deployment to K8s with manifest variable interpolation, HTTP ingress routing, and public TCP ingress for raw protocols. First-class builds (BuildKit), releases, and pipelines (build -> release -> deploy). Job execution with mclaude/claude/zai/gemini/code/codex/pi harnesses via `eve-agent-cli`. BYOK inference model (apps and agents bring their own LLM API keys via secrets; no platform-managed models or inference proxy). Provider registry + model discovery. Agent/team/thread primitives with repo-first sync and AgentPacks (`x-eve.packs`). Chat gateway with Slack + Nostr integration. Agent runtime (primary harness executor for all agent jobs; org-scoped warm pods). Org filesystem sync + org docs. Document ingestion (file upload -> event -> agent processing -> structured output in org docs; content deduplication via fingerprint). Cloud FS integration (Google Drive per-org OAuth, agent file tools). Per-org OAuth credentials (orgs bring their own Google/Slack app credentials via `oauth_app_configs`). Private endpoints (Tailscale networking for reaching private services from cluster pods). App CLI framework (typed CLI wrappers for agent-to-app API interactions, reducing LLM call waste). Cost tracking (execution receipts, resource classes, budgets, balance ledger, OpenCost-backed environment cost snapshots, and daily Sentinel cost summaries). Production hardening (content dedup, dead letter handling, per-phase latency diagnostics, routing decision logging, cost breakdown by agent/team, automatic retry policies, document expiration). Analytics, webhooks, and supervision primitives. Agent app API access (server-side `app_apis` in job hints, `@eve-horizon/auth` SDK). Workflow expansion into job DAGs with `depends_on` step dependencies. Org-aware auth SDK (memberships, org switching, project role resolution via `@eve-horizon/auth-react`). CLI as npm package (`@eve-horizon/cli`) and local `./bin/eh` helpers. K8s local stack via k3d.
+**What exists**: monorepo with 7 services (API, orchestrator, worker, agent runtime, gateway, SSO, dashboard). Database with orgs, projects, environments, jobs, attempts, agents, teams, threads, integrations, schedules. Full auth stack (SSH login, web auth via GoTrue + SSO broker, service principals, custom roles, access groups, project role resolution). RBAC with policy-as-code and default-deny data plane. Persistent environment deployment to K8s with manifest variable interpolation, HTTP ingress routing, and public TCP ingress for raw protocols. First-class builds (BuildKit), releases, and pipelines (build -> release -> deploy). Job execution with mclaude/claude/zai/gemini/code/codex/pi harnesses via `eve-agent-cli`. BYOK inference model (apps and agents bring their own LLM API keys via secrets; no platform-managed models or inference proxy). Provider registry + model discovery. Agent/team/thread primitives with repo-first sync and AgentPacks (`x-eve.packs`). Chat gateway with Slack + Nostr integration. Agent runtime (primary harness executor for all agent jobs; org-scoped warm pods). Org filesystem sync + org docs. Document ingestion (file upload -> event -> agent processing -> structured output in org docs; content deduplication via fingerprint). Cloud FS integration (Google Drive per-org OAuth, agent file tools). Per-org OAuth credentials (orgs bring their own Google/Slack app credentials via `oauth_app_configs`). Private endpoints (Tailscale networking for reaching private services from cluster pods). App CLI framework (typed CLI wrappers for agent-to-app API interactions, reducing LLM call waste). Cost tracking (execution receipts, resource classes, budgets, balance ledger, OpenCost-backed environment cost snapshots, and daily Sentinel cost summaries). Production hardening (content dedup, dead letter handling, per-phase latency diagnostics, routing decision logging, cost breakdown by agent/team, automatic retry policies, document expiration). Analytics, webhooks, and supervision primitives. Agent app API access (server-side `app_apis` in job hints, `@eve-horizon/auth` SDK). Workflow expansion into job DAGs with `depends_on` step dependencies. Org-aware auth SDK (memberships, org switching, project role resolution via `@eve-horizon/auth-react`). CLI as npm package (`@eve-horizon/cli`) and local `./bin/eh` helpers. K8s local stack via k3d.
 
 ### Pre-Deployment Phase
 
@@ -122,7 +122,7 @@ ONLY URL needed: EVE_API_URL
 CLI is a thin wrapper; all control flows through the API.
 ```
 
-**Services** (6 in the monorepo):
+**Services** (7 in the monorepo):
 
 - **API**: single gateway for org/project/job CRUD, secrets, events, runs, auth.
 - **Orchestrator**: polls ready jobs, routes to agent-runtime or worker based on job type.
@@ -130,6 +130,7 @@ CLI is a thin wrapper; all control flows through the API.
 - **Worker**: executes pipeline actions, scripts, and builds -- does NOT run agent jobs.
 - **Gateway**: routes inbound messages from Slack/Nostr to agents.
 - **SSO**: GoTrue + SSO broker for web authentication.
+- **Dashboard**: first-party web system app for jobs, environments, spend, and admin operations.
 
 **Key flows**:
 
@@ -309,6 +310,7 @@ Integration tests use API endpoints, not direct DB queries. Test and dev use sep
 | eve-horizon-starter | `../eve-horizon-starter` | Starter template for new Eve projects |
 | eve-horizon-fullstack-example | `../eve-horizon-fullstack-example` | Example fullstack app for deployment testing |
 | eve-skillpacks | `../eve-skillpacks` | Published skill packs referenced by `skills.txt` |
+| eve-software-factory | `../eve-software-factory` | Public AgentPack and relay example used by the full-stack fixture |
 
 Agents are free to make changes, commit, and push to `main` in these repos without explicit approval -- this is part of the normal development flow.
 
@@ -368,11 +370,13 @@ See `references/agents-teams.md`.
 
 ## Skills System
 
-Reusable capabilities installed via `skills.txt` manifest:
+Reusable capabilities come from manifest AgentPacks and complementary
+`skills.txt` sources:
 
 - `SKILL.md` files with frontmatter metadata.
-- Installed to `.agents/skills/` at clone time (legacy: `.agent/skills/`).
-- Workers run `.eve/hooks/on-clone.sh` to install skills.
+- Installed to the canonical `.agents/skills/` path before clone hooks run.
+- `.eve/hooks/on-clone.sh` can consume already-materialized runtime skills; it
+  does not need to install them.
 - Preferred flow: AgentPacks via `x-eve.packs` + `.eve/packs.lock.yaml`.
 
 See `references/skills-system.md`.

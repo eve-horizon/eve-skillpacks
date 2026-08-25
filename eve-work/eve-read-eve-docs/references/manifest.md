@@ -801,8 +801,10 @@ Runner-pod mode uses init containers and reports the same
 Agents without `toolchains` run on the base runtime. If provisioning fails, the
 attempt fails with `result_json.error_code = "toolchain_unavailable"`; inspect
 `eve job diagnose <job-id>` for `runtime_meta.toolchains` and provisioning logs.
-The `full` image (~2.6GB, all toolchains baked in) remains available via
-`EVE_WORKER_VARIANT=full` for worker deployments that still need it.
+The public runner is the canonical `worker:<platform-version>` image.
+Toolchains are separate images; there is no supported public `full` worker
+variant fallback. Diagnose provisioning with `eve job diagnose <job-id>` and
+verify the configured toolchain prefix/tag.
 
 ### Cloud FS Mounts
 

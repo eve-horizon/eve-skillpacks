@@ -20,9 +20,10 @@ skills**. Skills follow the OpenSkills SKILL.md format -- YAML frontmatter for
 metadata, imperative instructions in the body, and optional bundled resources --
 but they are sourced and materialized differently.
 
-- **Developer skills** live in root `skills.txt` and are refreshed with
-  `eve skills install`. They target local coding agents (Claude Code, Codex,
-  Gemini CLI, Pi) working on the repo.
+- **Developer skills** come from manifest AgentPacks first and complementary
+  root `skills.txt` sources second. Refresh both with `eve skills install`.
+  They target local coding agents (Claude Code, Codex, Gemini CLI, Pi) working
+  on the repo.
 - **Runtime skills** live in `.eve/manifest.yaml` (`x-eve.packs`), are pinned by
   `.eve/packs.lock.yaml`, and are materialized for Eve jobs by
   `eve skills materialize`. They are what runtime agents see inside jobs.
@@ -103,9 +104,24 @@ eve skills install              # Read skills.txt, install via the upstream skil
 eve skills install <source>     # Ad-hoc install of a single source
 ```
 
-This is the compatibility path. It shells out to the `skills` binary per
-skill per agent, so it is fine for occasional dev refresh but not for
-clone-time or runtime startup.
+This is the compatibility path. It shells out to the `skills` binary per skill
+per agent, so it is fine for occasional dev refresh but not for clone-time or
+runtime startup. For manifest-pack installation, a non-zero installer exit
+fails `eve skills install`; do not treat partial pack installation as success.
+The older direct-source and `skills.txt` compatibility paths still report some
+per-agent installer failures as warnings, so verify those installs explicitly.
+
+When the manifest declares `x-eve.packs` and no source argument is given,
+`eve skills install` resolves each pack through the matching
+`.eve/packs.lock.yaml` entry and installs from that resolved checkout. Remote
+packs therefore install at the exact pinned commit, not at the source's current
+default branch. Keep remote refs as 40-character commit SHAs and refresh the
+lock with `eve agents sync` before installing after a ref change.
+
+Pack discovery excludes every directory under `private-skills/` by default.
+Private skills are eligible only when the source itself explicitly targets a
+`private-skills` path. The same exclusion applies to `skills.txt` glob
+expansion.
 
 ### Runtime Path: `x-eve.packs` + `eve skills materialize`
 
