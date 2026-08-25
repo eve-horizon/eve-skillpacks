@@ -1,15 +1,15 @@
-resolved_at: 2026-03-18T12:22:05.691Z
+resolved_at: 2026-08-25T17:26:46.162Z
 project_slug: evskill
 packs:
-  - id: eve-skillpacks
+  - id: repo
     source: ./
-    ref: 18df68f6cb4008827e3fee65cf294f11e8dc7aed
+    ref: e5676224173b7fa893f230a48a746dd575cadd81
     pack_version: 1
 effective:
   agents_count: 0
   teams_count: 0
   routes_count: 0
   profiles_count: 0
-  agents_hash: 00000f62
+  agents_hash: 4f217137
   teams_hash: 52ae42b5
   chat_hash: 6eace17b

@@ -1,8 +1,15 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "416bb755f0675d71ded45a8cf6338d1a90a9929f",
-  "last_synced_at": "2026-08-25T17:09:07Z",
+  "last_synced_commit": "8fed3d57696ca450d3e66cf7e83e582a69b407b6",
+  "last_synced_at": "2026-08-25T17:27:07Z",
   "sync_log": [
+    {
+      "commit": "8fed3d57696ca450d3e66cf7e83e582a69b407b6",
+      "commit_short": "8fed3d5",
+      "synced_at": "2026-08-25T17:27:07Z",
+      "type": "verification-only",
+      "summary": "Reviewed 3 source commits after the material behavior sync. CLI and release guidance changes were already reflected in the skillpacks; the remaining watched delta only added historical-status banners to superseded source plans. No further skill content change was required. Repository and source-consistency checks passed, and the baseline advanced to the exact public source head."
+    },
     {
       "commit": "416bb755f0675d71ded45a8cf6338d1a90a9929f",
       "commit_short": "416bb75",
@@ -66,13 +73,6 @@
       "synced_at": "2026-03-18T17:03:12Z",
       "type": "incremental",
       "summary": "3-commit incremental sync — documented shipped app-onboarding groundwork: org-scoped email invites, org member search permissions, and SSO invite redirect preservation via /auth/exchange. Updated auth references and the auth skill; ignored the new proposed plan as roadmap-only."
-    },
-    {
-      "commit": "c43c2ba7bddb72ebcb0499aa1e0d7c8067f19f2a",
-      "commit_short": "c43c2ba",
-      "synced_at": "2026-03-18T12:59:00Z",
-      "type": "incremental",
-      "summary": "1-commit incremental sync — Cloud FS per-mount file operations added at the API layer (mount browse by path, file metadata, download, upload, folder creation). Skillpacks updated to capture the new API surface and align Cloud FS examples with the current CLI."
     }
   ]
 }
