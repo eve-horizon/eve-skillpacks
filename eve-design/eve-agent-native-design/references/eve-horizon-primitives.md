@@ -75,7 +75,7 @@ Knowledge distribution and progressive disclosure.
 
 - AgentPacks (preferred): declared in `x-eve.packs` in manifest, resolved to `packs.lock.yaml`
 - `skills.txt` — Legacy skill source declaration per project
-- Skills installed to `.agent/skills/` on clone
+- Skills installed to `.agents/skills/` on clone
 - Progressive disclosure: index skills route to detailed skills
 - Skill packs group related skills by domain (eve-work, eve-se, eve-design)
 

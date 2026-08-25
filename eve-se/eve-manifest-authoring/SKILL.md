@@ -149,7 +149,7 @@ For local dev, use the same image via Docker Compose for parity:
 # docker-compose.yml
 services:
   migrate:
-    image: ghcr.io/eve-horizon/eve-migrate:latest
+    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:
