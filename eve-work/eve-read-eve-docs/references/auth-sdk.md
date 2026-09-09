@@ -17,6 +17,12 @@
 
 Two shared packages that eliminate auth boilerplate in Eve-compatible apps.
 
+On a platform release supporting Google app sign-in, the operator and project can
+enable Google in the SSO broker. The SDK continues receiving Eve sessions and user
+IDs; do not replace Eve tokens with Google tokens or infer membership from an
+email domain. The initial Google route admits existing app members only. See
+`references/secrets-auth.md` for provider configuration and rollout requirements.
+
 | Package | Scope | Purpose |
 |---------|-------|---------|
 | `@eve-horizon/auth` | Backend (Express/NestJS) | Token verification, org check, route protection |
