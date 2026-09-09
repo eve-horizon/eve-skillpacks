@@ -716,6 +716,42 @@ SSO fetches `GET /auth/app-context?project_id=<project_id>` to render the projec
 
 Magic-link emails use the same `x-eve.branding` values as invite emails. `self_signup: false` returns generic success for unknown emails but does not call GoTrue and does not send email.
 
+### Optional Google Sign-In For Existing App Members
+
+Require a platform release containing Google app sign-in before using this
+configuration. Enable `x-eve.auth.oauth_providers: [google]` for the project and
+configure the provider on the owning deployment. The app continues using Eve
+identity and current app/project permissions. This flow requires an existing Eve
+user with app access and a verified matching Google email. It creates no Eve user,
+membership or invitation; it does not apply pending invitations during admission.
+Existing session refresh and email/invitation policies remain unchanged.
+
+Configure GoTrue `GOTRUE_EXTERNAL_GOOGLE_ENABLED`, `CLIENT_ID`, `SECRET` and
+`REDIRECT_URI` (all under the `GOTRUE_EXTERNAL_GOOGLE_` prefix). Google returns to
+the public **GoTrue** `/callback`; GoTrue then returns a PKCE code to the broker's
+`/auth/google/callback`. Set GoTrue's public/site URLs and permit that broker return.
+
+SSO additionally needs `EVE_SSO_GOOGLE_ENABLED=true`, its public origin in
+`EVE_SSO_URL`, the public GoTrue base in `SUPABASE_AUTH_EXTERNAL_URL`, its existing
+internal GoTrue URL, and `EVE_SSO_OAUTH_STATE_KEY` containing 32 random bytes encoded
+as base64url. Keep this secret stable across replicas. Hosted URLs use HTTPS and
+secure cookies. Store all credentials in the private deployment instance.
+
+The API's `POST /auth/oauth/exchange` accepts a GoTrue Bearer token and strict
+`{project_id, provider: "google"}` body. It validates the identity through GoTrue,
+resolves an existing Eve identity/user, checks current app access, and returns the
+normal Eve exchange response with numeric `expires_at`. Unknown users are denied.
+GoTrue may separately create its own auth record on first Google login; an instance
+that disables GoTrue signup must provision that record through its existing admin
+process. Google identity scopes do not grant Drive access.
+
+Verify real member login, identity preservation, nonmember rejection, refresh,
+sign-out and browser return before calling the hosted integration ready. Disabling
+the provider stops new sign-in but does not revoke existing sessions or remove
+memberships. Remove the optional field and resync the manifest before rolling the
+API back to an older strict schema. See the source `docs/system/google-sign-in.md`
+for deployment and acceptance details.
+
 ### Magic-Link Confirmation Interstitial
 
 All Eve-rendered magic-link and invite emails go out with a wrapped URL (`https://sso/m/mlw_<26 base32>`) instead of the raw GoTrue verify URL. The OTP is only revealed when a human clicks "Sign in" / "Accept invite" on the SSO-rendered interstitial, so corporate scanners (Defender SafeLinks, Mimecast, Proofpoint, Barracuda, Cisco IronPort) that GET every URL in incoming mail no longer burn the single-use token.
