@@ -178,6 +178,8 @@
     "docs/deploy/oss-release-cutover.md",
     "docs/deploy/container-image-release.md",
     "docker/toolchains/browser/",
+    "packages/shared/src/invoke/browser-runtime.ts",
+    "tests/manual/scenarios/57-browser-runtime.md",
     "docs/ideas/agent-native-design.md",
     "docs/ideas/platform-primitives-for-agentic-apps.md",
     "packages/cli/src/commands/",

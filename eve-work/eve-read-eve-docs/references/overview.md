@@ -343,8 +343,8 @@ version and its owner performs the rollout. Source workflows must not hold
 cluster credentials or use `repository_dispatch` to deploy an instance.
 The native linux/amd64 browser gate qualifies exact worker, agent-runtime,
 Python, and browser image artifacts; each owning deployment must still verify
-its supported runtime. Versioned publication and hosted browser verification
-remain pending for this release.
+its selected versions and digests, then prove hosted browser availability with
+a job and screenshot receipt.
 
 Pipelines orchestrate these steps as a job graph. See `references/builds-releases.md`.
 

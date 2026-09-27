@@ -37,10 +37,11 @@ Before instance rollout, make each GHCR package public and verify anonymous
 pulls by digest for all six toolchains and seven services; public source alone
 does not establish package visibility. Record version tags, source revisions,
 manifest/config digests, gate run, and actual pulled imageIDs. The instance
-owner pins the selected service artifacts and toolchain version, then verifies its own runtime with a browser
-job and screenshot receipt. A green source or native gate is not evidence of
-hosted browser availability. Versioned publication and hosted browser
-verification are still pending for this browser release.
+owner pins the selected service artifacts and toolchain version, then verifies
+its own runtime with a browser job and screenshot receipt. A green source or
+native gate is not evidence of hosted browser availability. Verify the selected
+versions and digests against the owning deployment's actual pulled imageIDs
+before accepting the hosted browser receipt.
 
 ## Deploy Error Classes (DeployFailure kinds)
 
@@ -598,8 +599,10 @@ Runner Pod
 
 The runner records actual pulled toolchain init-container `image_ids` in
 `runtime_meta.toolchains`. Inline jobs resolve image source digests using the
-configured prefix and tag, then store those digests in runtime metadata. A
-source digest is provenance for the image that populated the writable cache;
+configured prefix and tag. Inline agents store the browser digest at
+`runtime_meta.browser.source_image_digest`; inline scripts use
+`runtime_meta.toolchains.browser_source_image_digest`. A source digest is
+provenance for the image that populated the writable cache;
 it does not attest to the integrity of extracted cache files.
 
 ### Toolchain Images

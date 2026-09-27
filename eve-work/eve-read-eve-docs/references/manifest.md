@@ -816,10 +816,12 @@ Each toolchain is a separate container image extracted into
 toolchain cache, then prepend toolchain `bin` dirs to `PATH` and inject
 per-toolchain `env.sh` variables (for example `JAVA_HOME`, `RUSTUP_HOME`).
 Worker and agent runner builders add init containers in runner-pod mode.
-Inline mode resolves the configured prefix and version tag to source image
-digests and stores them with `runtime_meta.toolchains`; runner mode records the
-actual pulled init-container `image_ids`. A source digest identifies the image
-that populated a writable cache, not integrity of the extracted files.
+Inline mode resolves the configured prefix and version tag to a source image
+digest: agent jobs record `runtime_meta.browser.source_image_digest`, while
+script jobs record `runtime_meta.toolchains.browser_source_image_digest`.
+Runner mode records actual pulled init-container
+`runtime_meta.toolchains.image_ids`. A source digest identifies the image that
+populated a writable cache, not integrity of the extracted files.
 
 Agents without `toolchains` run on the base runtime. If provisioning fails, the
 attempt fails with `result_json.error_code = "toolchain_unavailable"`; inspect
