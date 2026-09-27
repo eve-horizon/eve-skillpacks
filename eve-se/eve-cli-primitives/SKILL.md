@@ -29,6 +29,7 @@ eve auth login
 eve auth status
 eve auth logout
 eve auth permissions
+eve auth verify --harness codex --project proj_xxx --json
 
 # Sync local OAuth tokens for agent harnesses (optional)
 eve auth sync
@@ -196,7 +197,11 @@ eve workflow run qa-review --input '{"task":"audit"}'
 eve workflow invoke qa-review --input '{"task":"audit"}'
 eve workflow run qa-review --input '{...}' --env-override MODEL=opus-4.5
 eve workflow logs job_abc123
+eve workflow retry <root-job-id> --failed
 ```
+
+Workflow retry recreates failed script/action steps with a clear assignee so
+the orchestrator can claim them; agent retries retain their assignment.
 
 `--env-override KEY=VALUE` is repeatable on `run` and `invoke`; values flow through to each step's job as `env_overrides`.
 

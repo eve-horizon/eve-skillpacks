@@ -22,6 +22,11 @@ Every debugging capability must be available through the CLI. If you find yourse
 - `eve job diagnose <id>` for timeline and error summary.
 - `eve job show <id> --verbose` for attempts and phase.
 - `eve job dep list <id>` for dependency blocks.
+- For Code/Codex auth failures, run
+  `eve auth verify --harness codex --project <id> --json`, then inspect the
+  redacted `codex_auth_selected` event or the `Auth:` line in
+  `eve job diagnose <id>` / `eve job receipt <id>`. The receipt retains selection
+  source and key name/scope after the runner exits, never credential values.
 
 ## Per-Job Harness Overrides
 

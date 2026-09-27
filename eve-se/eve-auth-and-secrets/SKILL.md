@@ -45,7 +45,7 @@ Eve uses challenge-response authentication. The default provider is `github_ssh`
 
 JWT payloads include `sub` (user ID), `org_id`, `scope`, and `exp`. Verify tokens via the JWKS endpoint: `GET /auth/jwks`.
 
-Role and org membership changes take effect immediately -- the server resolves permissions from live DB memberships, not stale JWT claims. When a request includes a `project_id` but no `org_id`, the permission guard derives the org context from the project's owning org.
+Role and org membership changes take effect immediately -- the server resolves permissions from live DB memberships, not stale JWT claims. For project, job, pipeline-run, build, and thread routes, the permission guard uses the addressed resource's owning project and org, ignoring body `org_id`. Missing resources return 404. Job/service tokens retain their explicit permissions and must stay within their minted scope.
 
 ### Permissions
 
@@ -98,6 +98,10 @@ curl -X POST "$EVE_API_URL/auth/invites" -H "Authorization: Bearer $TOKEN" \
 ```
 
 If no auth method is specified (`--github`, `--ssh-key`, or `--web`), the CLI warns that the user will not be able to log in. The user can self-register later via `eve auth request-access --org "Org Name" --ssh-key ~/.ssh/id_ed25519.pub --wait`.
+
+When `eve admin invite --org <id>` targets an existing member, omitting
+`--role` preserves that member's current org role; a new membership defaults
+to `member`. Pass `--role` only when the role should change.
 
 When the identity authenticates, Eve auto-provisions their account and org membership.
 
@@ -154,6 +158,8 @@ eve auth mint --email app-bot@example.com --org org_xxx --ttl 90
 # Scope to project with admin role
 eve auth mint --email app-bot@example.com --project proj_xxx --role admin
 ```
+
+`eve auth mint` requires `--email` and one of `--org` or `--project`.
 
 Print the current access token (useful for scripts):
 
@@ -637,7 +643,7 @@ Benefits: isolated credentials per org, custom consent screen branding, independ
 
 ## Project Role Resolution
 
-Role and org membership changes take effect immediately -- the server resolves permissions from live DB memberships, not stale JWT claims. When a request includes a `project_id` but no `org_id`, the permission guard derives the org context from the project's owning org.
+Role and org membership changes take effect immediately -- the server resolves permissions from live DB memberships, not stale JWT claims. Project, job, pipeline-run, build, and thread routes resolve from the addressed resource's owning project and org; a body `org_id` cannot change that context. Missing resources return 404. Job/service tokens retain explicit permissions and may address only resources within their minted scope.
 
 The Auth SDK (`@eve-horizon/auth`) exposes this via `eveUserAuth()` middleware. Use `strategy: 'remote'` for immediate membership freshness when needed.
 

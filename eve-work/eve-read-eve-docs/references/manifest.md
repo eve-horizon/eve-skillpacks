@@ -441,6 +441,10 @@ Supported Compose fields: `image`, `build`, `environment`, `ports`, `depends_on`
 Notes:
 - `x-eve.role: job` makes a service runnable as a one-off job (migrations, seeds).
 - `x-eve.role: managed_db` marks a service as a platform-provisioned database.
+- `x-eve.managed.roles` declares local-provider tenant logins with unique
+  `name` values matching `^[a-z][a-z0-9_]{0,15}$` and `grants: readonly` or
+  `readwrite`. Use `${managed.<service>.roles.<name>.url}` for app access and
+  the owner URL for migrations. Cloud providers reject role declarations.
 - `spec_url` can be relative (resolved against service URL) or absolute.
 - `spec_path` is supported only for local `file://` repos.
 - If a service exposes ports and the cluster domain is configured, Eve creates ingress by default. Set `x-eve.ingress.public: false` to disable.
@@ -464,6 +468,8 @@ services:
         engine: postgres
         engine_version: "16"
         extensions: [postgis, pgvector]
+        roles:
+          - { name: app, grants: readwrite }
 ```
 
 Supported plain extensions are `postgis`, `pgvector`, `pg_trgm`, `btree_gist`, `hstore`, and `citext`. `pg_cron` is provider-gated; `timescaledb` is still not declarable on AWS RDS.
@@ -921,6 +927,12 @@ x-eve:
     storage_class: standard        # optional
     name: my-data                  # optional PVC name
 ```
+
+Services mounting a `ReadWriteOnce` volume (the default access mode) use
+Kubernetes `Recreate` on deploy, including `x-eve.role: database` services.
+Other volume modes retain `RollingUpdate`. Set `x-eve.rollout: rolling` or
+`x-eve.rollout: recreate` to override the default. EKS stable-egress services
+always use `Recreate`, even with an explicit rolling override.
 
 ### Healthcheck
 

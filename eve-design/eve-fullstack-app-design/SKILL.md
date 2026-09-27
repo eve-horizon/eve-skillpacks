@@ -78,7 +78,7 @@ services:
 ### Service Design Rules
 
 1. **One concern per service.** Separate HTTP serving from background processing. An API service should not also run scheduled jobs.
-2. **Use managed DB for Postgres.** Declare `x-eve.role: managed_db` and let the platform provision, connect, and inject credentials. No manual connection strings.
+2. **Use managed DB for Postgres.** Declare `x-eve.role: managed_db` and let the platform provision, connect, and inject credentials. On the local provider, declare `x-eve.managed.roles` for app `readwrite` or reporting `readonly` access; keep the owner URL for migrations. Cloud providers reject tenant roles. No manual connection strings.
 3. **Mark external services explicitly.** Use `x-eve.external: true` with `x-eve.connection_url` for services hosted outside Eve (Redis, third-party APIs).
 4. **Use `x-eve.role: job` for one-off tasks.** Migrations, seeds, and data backfills are job services, not persistent processes.
 5. **Expose ingress intentionally.** Only services that need external HTTP access get `x-eve.ingress.public: true`. Internal services communicate via cluster networking.

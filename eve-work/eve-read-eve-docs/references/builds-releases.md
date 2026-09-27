@@ -23,7 +23,9 @@ hosted instance:
 - `release-v*` publishes seven service images: `api`, `sso`, `gateway`,
   `agent-runtime`, `orchestrator`, `worker`, and `dashboard`.
 - `toolchain-images/v*` independently publishes
-  `toolchain-{python,media,rust,java,kotlin}`.
+  `toolchain-{python,media,rust,java,kotlin,browser}` after the native browser
+  payload gate. Publishing is configured in source; confirm package visibility
+  and actual deployed image digests before claiming hosted availability.
 - CLI, auth SDK, and chat SDK packages use their own npm tag prefixes.
 
 The `worker-images/v*` and `eve-migrate/v*` publishing paths were removed on

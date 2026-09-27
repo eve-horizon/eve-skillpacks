@@ -161,8 +161,8 @@ Common build failures:
 
 ## Public Runner Image
 
-The public runner is
-`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`. It is one of
+The source release runner is
+`ghcr.io/eve-horizon/eve-horizon/worker:<platform-version>`. It is one of
 the seven images published by `release-v*` alongside `api`, `sso`, `gateway`,
 `agent-runtime`, `orchestrator`, and `dashboard`. Pin the same platform version
 used by the rest of the deployment through `EVE_RUNNER_IMAGE`.
@@ -294,6 +294,11 @@ Production disk management for agent workspaces:
 ## Managed DB TLS
 
 Managed Postgres now ships a trusted CA chain to apps. **Do not** set `rejectUnauthorized: false` or `ssl: { rejectUnauthorized: false }` in service code — verified TLS is the default. If a client errors on cert verification, check that the service is reading `${managed.<db>.url}` rather than a hand-crafted DSN.
+
+When a service mounts a `ReadWriteOnce` volume, expect `Recreate` rollout and
+a brief stop before the replacement starts. `ReadWriteMany` and `ReadOnlyMany`
+keep rolling updates by default. Check `x-eve.rollout` for an explicit
+`rolling` or `recreate` override; EKS stable-egress services always recreate.
 
 ## Stable Egress (Allowlisted Source IPs)
 

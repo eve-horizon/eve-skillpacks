@@ -83,6 +83,11 @@ eve auth verify --harness claude --project proj_xxx --json
 # Creates a short managed Claude job, checks claude_auth_selected, apiKeySource != none,
 # and model reply EVE_AUTH_OK. JSON includes key, scope, token class, and apiKeySource.
 
+# Managed Codex auth probe
+eve auth verify --harness codex --project proj_xxx --json
+# Checks codex_auth_selected and EVE_AUTH_OK. JSON includes credential source,
+# selected secret key/scope when present, and model_replied.
+
 # OAuth token sync to Eve
 eve auth sync                                           # Sync to user-level (default)
 eve auth sync --org org_xxx                             # Sync to org-level

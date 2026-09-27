@@ -1,8 +1,15 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "8fed3d57696ca450d3e66cf7e83e582a69b407b6",
-  "last_synced_at": "2026-08-25T17:27:07Z",
+  "last_synced_commit": "6db6c3a9a07e017306e0c38f2bca3df29a2836d8",
+  "last_synced_at": "2026-09-27T23:17:08Z",
   "sync_log": [
+    {
+      "commit": "6db6c3a9a07e017306e0c38f2bca3df29a2836d8",
+      "commit_short": "6db6c3a",
+      "synced_at": "2026-09-27T23:17:08Z",
+      "type": "incremental",
+      "summary": "Audited all 31 public source commits in 8fed3d5..6db6c3a. Verified browser runtime and native-gated GHCR release behavior already distilled in the base; updated workflow script retry claimability, Cloud FS replace/trash and mount containment, addressed-resource permission context, RWO recreate rollout, admin invite/mint scope, Codex credential provenance and verify command, local-only managed DB tenant roles and connection interpolation, pinned Opus 4.7 aliases, current model rate card and worker harness CLI pins. Test/type/comment/merge-only commits added no user capability. Expanded source mappings; no hosted rollout or package availability asserted."
+    },
     {
       "commit": "8fed3d57696ca450d3e66cf7e83e582a69b407b6",
       "commit_short": "8fed3d5",
@@ -66,13 +73,6 @@
       "synced_at": "2026-03-20T17:02:29Z",
       "type": "incremental",
       "summary": "1-commit incremental sync — documented the fixed org-scoped SSO invite accept flow: GoTrue mailer links now enter via /verify, the SSO broker preserves invite redirect fallbacks, and invited users are sent through /set-password before landing in the target app."
-    },
-    {
-      "commit": "3291d7851fa19fe021be301cb870635f692cfd21",
-      "commit_short": "3291d78",
-      "synced_at": "2026-03-18T17:03:12Z",
-      "type": "incremental",
-      "summary": "3-commit incremental sync — documented shipped app-onboarding groundwork: org-scoped email invites, org member search permissions, and SSO invite redirect preservation via /auth/exchange. Updated auth references and the auth skill; ignored the new proposed plan as roadmap-only."
     }
   ]
 }

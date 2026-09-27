@@ -99,10 +99,16 @@ services:
         class: db.p1
         engine: postgres
         engine_version: "16"
+        roles:
+          - { name: app, grants: readwrite }
 ```
 
 Not deployed to K8s — provisioned by the orchestrator on first deploy.
 Reference managed values elsewhere: `${managed.db.url}`.
+For app runtime access on the local provider, declare unique 1–16 character
+role names starting with a lowercase letter and use
+`${managed.db.roles.app.url}`. Choose `readonly` or `readwrite`; run schema
+migrations with the owner URL. Cloud providers reject tenant roles.
 
 ## Eve-Migrate for Database Migrations
 
@@ -336,6 +342,8 @@ browser/client-side code. Services can override these in their `environment` sec
 - Env interpolation: `${ENV_NAME}`, `${PROJECT_ID}`, `${ORG_ID}`, `${ORG_SLUG}`, `${COMPONENT_NAME}`.
 - Secret interpolation: `${secret.KEY}` pulls from Eve secrets or `.eve/dev-secrets.yaml`.
 - Managed DB interpolation: `${managed.<service>.<field>}` resolves at deploy time.
+  Fields include `url`, `host`, `port`, `database`, `username`, `password`,
+  `extensions`, and `roles.<name>.url|username|password` for declared roles.
 - Use `.eve/dev-secrets.yaml` for local overrides; set real secrets via the API for production.
 
 ## Eve extensions

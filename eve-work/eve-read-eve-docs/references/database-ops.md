@@ -30,6 +30,9 @@ services:
         engine: postgres
         engine_version: "16"
         extensions: [postgis, pgvector, pg_trgm]
+        roles:
+          - { name: app, grants: readwrite }
+          - { name: reports, grants: readonly }
 ```
 
 Provisioning occurs automatically when an environment is deployed. Managed DB services are not rendered into K8s manifests.
@@ -69,7 +72,26 @@ environment:
   DB_PASSWORD: ${managed.db.password}
 ```
 
-Available fields: `url`, `host`, `port`, `database`, `username`, `password`.
+Available fields: `url` (verbatim owner URL), `host`, `port` (defaults to
+`5432`), `database`, `username`, `password`, `extensions` (comma-separated),
+and `roles.<name>.url|username|password` for declared roles. The role URL
+shares the owner's host, port, database, and TLS settings.
+
+### Tenant roles
+
+Declare unique role names matching `^[a-z][a-z0-9_]{0,15}$` under
+`x-eve.managed.roles`. `readonly` grants SELECT on existing and future
+owner-created tables and sequences in `public`; `readwrite` also grants table
+INSERT/UPDATE/DELETE and sequence USAGE. Both get database CONNECT and schema
+USAGE, but cannot create objects. Run migrations with the owner URL; use a role
+URL such as `${managed.db.roles.app.url}` for an app service.
+
+Roles are created on deploy. Grant changes reconcile in place; removed roles
+are revoked and dropped on the next deploy. `eve db rotate-credentials` rotates
+owner and role passwords; `eve db destroy` drops the roles with the database.
+`eve db status --env <name>` shows declared and provisioned role names, grants,
+and login names without passwords. Tenant roles are supported on the local
+provider; cloud providers reject declarations with `provider_unsupported`.
 
 ## TLS Trust (Managed DB)
 

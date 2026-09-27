@@ -828,6 +828,9 @@ controls, resource refs, harness settings, and API hints are preserved.
 retries that step and downstream dependents. Superseded jobs remain in the tree
 with retry metadata, while replacement jobs receive rewired dependency edges so
 prior-step result injection reads from the correct predecessor.
+Retry clones of script and action steps clear the original claim-time assignee,
+so the orchestrator can claim and run them. Agent step clones retain their
+assignee for agent routing.
 
 ## Triggers
 

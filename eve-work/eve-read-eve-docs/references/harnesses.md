@@ -160,8 +160,8 @@ When a job has `git` configuration, the worker:
 
 ## Worker Image and Toolchains
 
-The public runner is
-`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`. It contains
+The source release runner is
+`ghcr.io/eve-horizon/eve-horizon/worker:<platform-version>`. It contains
 the runner and harness binaries and is one of the seven service images
 published by `release-v*`. Pin it through `EVE_RUNNER_IMAGE` to the deployment's
 platform version. Most agent jobs need nothing beyond this image.
@@ -294,7 +294,14 @@ Verify managed auth with:
 
 ```bash
 eve auth verify --harness claude --project proj_xxx --json
+eve auth verify --harness codex --project proj_xxx --json
 ```
+
+Code/Codex attempts log redacted `codex_auth_selected` with the source
+(`api_key`, `auth_json`, `oauth_access_token`, or `preexisting`), secret key
+name, and scope when available. The attempt receipt carries the same `auth`
+selection; inspect `eve job diagnose <id>` or `eve job receipt <id>` after the
+runner exits. Credential values are never included.
 
 ### Zai Harness
 
@@ -386,26 +393,27 @@ If a `variants/<variant>` directory exists, it overlays the base config.
 5. **Harness CLI normalization** — `packages/shared/src/harnesses/model-aliases.ts`:
    add aliases when a model has multiple user-facing forms (e.g. `opus4.7`,
    `opus-4-7`, `claude-opus-4-7`) that should all resolve to the harness's
-   own short alias. Per-job + chat-hint model overrides flow through the
+   pinned model ID. Opus 4.7 aliases resolve to `claude-opus-4-7`, not the
+   moving `opus` alias. Per-job + chat-hint model overrides flow through the
    normalizer before reaching the harness CLI.
 
 ### Currently Registered Models
 
-Default rate card (`DEFAULT_RATE_CARD_EFFECTIVE_AT = 2026-04-29`):
+Default rate card (`DEFAULT_RATE_CARD_EFFECTIVE_AT = 2026-09-23`):
 
 | Provider  | Models                                                                                              |
 |-----------|-----------------------------------------------------------------------------------------------------|
-| anthropic | `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`, `claude-sonnet-4` |
-| openai    | `gpt-5.5`, `o3`                                                                                     |
+| anthropic | `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`, `claude-sonnet-4` |
+| openai    | `gpt-6-astra`, `gpt-5.5`, `o3` |
 | zai       | `glm-5`, `glm-5-code`                                                                               |
 
 `claude-opus-4-7` priced at $5/$25 in/out per million tokens, $0.50 cache_read,
 $6.25 cache_write (matches 4.6). `gpt-5.5` priced at $5/$30 in/out, $0.50
 cache_read, $30 reasoning.
 
-Pinned harness binary versions (worker + agent-runtime Dockerfiles): cc-mirror
-2.1.0, claude-code 2.1.123, codex 0.125.0, gemini-cli 0.40.0,
-just-every/code 0.6.96, pi 0.70.6, skills 1.5.3.
+Worker Dockerfile pins Claude Code 2.1.280 and Codex 0.156.1; other harness
+package arguments remain on their existing release tracks. Check the deployed
+image digest before treating a local source pin as a hosted version.
 
 ---
 
@@ -422,8 +430,8 @@ mclaude --print --verbose --output-format stream-json \
 - Model: `$CLAUDE_MODEL` or `sonnet` (default fallback changed from `opus` to `sonnet`)
 - Skills: mclaude installs from `skills.txt` into `.agents/skills/` at runtime
 - Model aliases: `opus4.7`, `opus-4-7`, `opus-4.7`, `claude-opus-4-7` (and the
-  `anthropic/` provider-prefixed variants) all normalize to Claude Code's `opus`
-  alias via `normalizeClaudeCodeModelAlias`. Per-job and chat-hint model
+  `anthropic/` provider-prefixed variants) all normalize to the pinned
+  `claude-opus-4-7` ID via `normalizeClaudeCodeModelAlias`. Per-job and chat-hint model
   overrides feed through this normalizer before reaching the harness CLI.
 
 ### zai

@@ -409,15 +409,19 @@ eve auth creds --claude       # Only Claude
 eve auth creds --codex        # Only Codex
 ```
 
-Verify managed Claude auth after syncing:
+Verify managed harness auth after syncing:
 
 ```bash
 eve auth verify --harness claude --project proj_xxx --json
+eve auth verify --harness codex --project proj_xxx --json
 ```
 
-This creates a short managed Claude job and returns `ok`, selected key/scope,
-token class, Claude Code `apiKeySource`, and whether the model replied
-`EVE_AUTH_OK`.
+Each command creates a short managed job and checks the selection log and
+`EVE_AUTH_OK` reply. Claude returns the selected key/scope, token class, and
+Claude Code `apiKeySource`. Codex returns `source` (`api_key`, `auth_json`,
+`oauth_access_token`, or `preexisting`), selected secret key/scope when present,
+and `model_replied`. `preexisting` means an auth file was already on disk and
+has no secret key or scope in the selection event.
 
 ### OAuth Token Sync
 
@@ -506,6 +510,14 @@ eve auth whoami               # Current user + effective permissions
 API: `GET /auth/permissions` (catalog), `GET /auth/me` (current user).
 
 Permission resolution: `effective = expand(base_role) UNION all(bound_custom_role_permissions)`.
+
+For user tokens, project, job, pipeline-run, build, and thread routes resolve
+permissions from the addressed resource's owning project and org; request-body
+`org_id` cannot override that context. Missing resources return 404. Routes
+without a resource parameter may use body `org_id` (for example, project
+creation). Job, service, and service-principal tokens use their explicit
+permission lists and may address these resources only within their minted
+job, project, or org scope.
 
 ### Identity Management
 
@@ -668,6 +680,11 @@ eve org invite user@example.com \
   --project proj_123 \
   --redirect-to https://app.example.com/invite/complete
 ```
+
+`eve admin invite --org <id>` preserves an existing org member's role when
+`--role` is omitted; new members default to `member`. Specify `--role` to
+change it intentionally. `eve auth mint` requires `--email` and either `--org`
+or `--project`.
 
 Projects define invite email branding in `.eve/manifest.yaml`:
 

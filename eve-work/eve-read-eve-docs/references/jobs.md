@@ -699,6 +699,8 @@ rerunning successful predecessor steps. Use `--from <step-name>` to rerun a
 named step and its downstream dependents. Eve creates replacement child jobs,
 marks the replaced step jobs superseded in `hints`, and rewires dependencies to
 the current replacement jobs.
+Script/action replacements clear stale claim-time assignees so the
+orchestrator can claim them; agent replacements retain their assignment.
 
 Workflow steps support retry in the manifest:
 

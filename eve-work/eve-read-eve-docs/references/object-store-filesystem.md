@@ -304,13 +304,18 @@ The March 18, 2026 Cloud FS update added direct per-mount file operations in the
 | `GET` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/files/:file_id/download` | Stream file contents |
 | `POST` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/upload` | Upload a file to a target path |
 | `POST` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/folders` | Create a folder |
+| `DELETE` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/files/:file_id` | Move a file to recoverable provider trash |
 
 Upload details:
 - Requires `cloud_fs:admin`.
 - Send raw file bytes as the request body.
 - Set `X-Cloud-FS-Path: /folder/file.ext` to choose the destination path.
 - Set `Content-Type` to the file MIME type.
-- Read-only mounts reject uploads and folder creation.
+- Uploading to a destination with a same-name file updates the newest match in place (same file ID, new revision); the response includes `replaced: true`. New uploads return `replaced: false`. Trash is recoverable; this API does not permanently delete files.
+- Read-only mounts reject uploads, folder creation, and trash.
+- Caller-supplied file and folder IDs must be within the mount root. Metadata,
+  download, browse by `folder_id`, create-folder by `parent_id`, and trash
+  return the same 404 for missing or out-of-root IDs.
 
 ### Events
 
