@@ -313,9 +313,11 @@ Upload details:
 - Set `Content-Type` to the file MIME type.
 - Uploading to a destination with a same-name file updates the newest match in place (same file ID, new revision); the response includes `replaced: true`. New uploads return `replaced: false`. Trash is recoverable; this API does not permanently delete files.
 - Read-only mounts reject uploads, folder creation, and trash.
-- Caller-supplied file and folder IDs must be within the mount root. Metadata,
-  download, browse by `folder_id`, create-folder by `parent_id`, and trash
-  return the same 404 for missing or out-of-root IDs.
+- For an explicit folder root, caller-supplied file and folder IDs must be that
+  folder or its descendants. The Google Drive `root` alias instead accepts any
+  readable non-shortcut item without an ancestry check; shortcuts are rejected.
+  Metadata, download, browse by `folder_id`, create-folder by `parent_id`, and
+  trash return the same 404 for missing, out-of-root, or shortcut IDs.
 
 ### Events
 

@@ -83,8 +83,9 @@ Declare unique role names matching `^[a-z][a-z0-9_]{0,15}$` under
 `x-eve.managed.roles`. `readonly` grants SELECT on existing and future
 owner-created tables and sequences in `public`; `readwrite` also grants table
 INSERT/UPDATE/DELETE and sequence USAGE. Both get database CONNECT and schema
-USAGE, but cannot create objects. Run migrations with the owner URL; use a role
-URL such as `${managed.db.roles.app.url}` for an app service.
+USAGE. These declared grants do not include `CREATE` on `public`; privileges
+inherited through `PUBLIC` or other grants are not revoked. Run migrations
+with the owner URL; use `${managed.db.roles.app.url}` for an app service.
 
 Roles are created on deploy. Grant changes reconcile in place; removed roles
 are revoked and dropped on the next deploy. `eve db rotate-credentials` rotates
