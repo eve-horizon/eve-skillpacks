@@ -333,11 +333,18 @@ The standard deployment flow:
 3. **Deploy**: apply release to an environment.
 
 Hosted platform releases use a **three-repo model**. The public source repo
-(`eve-horizon/eve-horizon`) publishes seven service images on a `release-v*`
-tag and stops. The public `eve-horizon/eve-horizon-infra` repo is the reusable
+(`eve-horizon/eve-horizon`) is configured to publish seven service images on a `release-v*`
+tag and six toolchains on an independent `toolchain-images/v*` version track,
+then stops. Packages use `ghcr.io/eve-horizon/eve-horizon/` and require public
+visibility plus anonymous digest verification. The public
+`eve-horizon/eve-horizon-infra` repo is the reusable
 template. A private deployment-instance repo pins the selected platform
 version and its owner performs the rollout. Source workflows must not hold
 cluster credentials or use `repository_dispatch` to deploy an instance.
+The native linux/amd64 browser gate qualifies exact worker, agent-runtime,
+Python, and browser image artifacts; each owning deployment must still verify
+its supported runtime. Versioned publication and hosted browser verification
+remain pending for this release.
 
 Pipelines orchestrate these steps as a job graph. See `references/builds-releases.md`.
 

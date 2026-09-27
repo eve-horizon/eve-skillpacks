@@ -21,6 +21,27 @@ public source repo. For a hosted upgrade, verify the source publish first, then
 switch to the target instance repo, bump the pinned version, review the diff,
 and deploy from there.
 
+The source workflows are configured to publish seven independently archived service images under
+`ghcr.io/eve-horizon/eve-horizon/{api,sso,gateway,agent-runtime,orchestrator,worker,dashboard}`
+and six toolchain images on an independent version track under the same prefix. An approved
+`toolchain-images/v<version>` tag publishes toolchains; an approved
+`release-v<version>` tag publishes services. Manual workflow dispatch runs the
+build and gate but cannot publish. Both release paths build native linux/amd64
+archives, run the exact Python/browser payload with worker and agent-runtime
+images through the native headless Chromium gate, reject an already-used
+version, then publish those frozen archives. The gate checks Playwright/Chromium
+versions, text, SVG geometry, a nonempty screenshot, UID/GID 1000, default
+seccomp, no added privileges or capabilities, and memory limits.
+
+Before instance rollout, make each GHCR package public and verify anonymous
+pulls by digest for all six toolchains and seven services; public source alone
+does not establish package visibility. Record version tags, source revisions,
+manifest/config digests, gate run, and actual pulled imageIDs. The instance
+owner pins the selected service artifacts and toolchain version, then verifies its own runtime with a browser
+job and screenshot receipt. A green source or native gate is not evidence of
+hosted browser availability. Versioned publication and hosted browser
+verification are still pending for this browser release.
+
 ## Deploy Error Classes (DeployFailure kinds)
 
 The deployer classifies deploy failures and writes the kind to both the attempt
@@ -542,7 +563,7 @@ deploy:
 
 The supported public runner is:
 
-`public.ecr.aws/w7c4v0w3/eve-horizon/worker:<platform-version>`
+`ghcr.io/eve-horizon/eve-horizon/worker:<platform-version>`
 
 `release-v*` publishes seven versioned service images: `api`, `sso`,
 `gateway`, `agent-runtime`, `orchestrator`, `worker`, and `dashboard`. Configure
@@ -558,12 +579,15 @@ asset.
 
 ## Worker Toolchain-on-Demand
 
-The canonical worker runs the runner and harnesses. Toolchains (Python, Rust,
-Java, Kotlin, media/ffmpeg) are injected via init containers only when needed.
+The canonical worker runs scripts and pipeline actions; agent-runtime runs
+agent jobs. Toolchains (Python, Rust, Java, Kotlin, media/ffmpeg, browser) are
+provisioned only when declared. Inline worker/agent jobs resolve and cache
+the image payload; worker and agent runner builders add init containers.
 
 ### How Init Container Injection Works
 
-When a job declares toolchains (via agent config or workflow step), the orchestrator adds init containers to the runner pod:
+When a job declares toolchains (via agent config or workflow/pipeline step),
+the worker or agent-runtime runner builder adds init containers to its pod:
 
 ```
 Runner Pod
@@ -572,7 +596,11 @@ Runner Pod
   Container: runner → base image, PATH extended with toolchain bins
 ```
 
-Each toolchain image is small (50-300MB). Init containers finish in <1s if the image is cached on the node. First pull adds ~5-10s.
+The runner records actual pulled toolchain init-container `image_ids` in
+`runtime_meta.toolchains`. Inline jobs resolve image source digests using the
+configured prefix and tag, then store those digests in runtime metadata. A
+source digest is provenance for the image that populated the writable cache;
+it does not attest to the integrity of extracted cache files.
 
 ### Toolchain Images
 
@@ -583,8 +611,14 @@ Each toolchain image is small (50-300MB). Init containers finish in <1s if the i
 | `rust` | rustup, stable toolchain, rustfmt, clippy | ~400MB |
 | `java` | Temurin JDK 21 | ~300MB |
 | `kotlin` | kotlinc 2.0 + JDK 21 (self-contained) | ~350MB |
+| `browser` | Playwright 1.63.0 + matching headless Chromium | varies |
 
-Images published to ECR: `public.ecr.aws/w7c4v0w3/eve-horizon/toolchain-{name}:{version}`
+The six independently versioned toolchain packages use
+`ghcr.io/eve-horizon/eve-horizon/toolchain-{name}:{toolchain-version}`.
+Configure `EVE_TOOLCHAIN_IMAGE_PREFIX` and `EVE_TOOLCHAIN_IMAGE_TAG` on the
+worker and agent-runtime of the owning deployment. Check that the deployment
+actually has a supported linux/amd64 browser runtime before requesting it.
+There is no per-toolchain digest override environment API.
 
 ### Environment Setup
 
@@ -601,6 +635,10 @@ export PATH="${EVE_TOOLCHAIN_PATHS}:${PATH}"
 - Agents without a `toolchains` field do not get toolchain init containers.
 - Configure toolchain image prefix/tag with `EVE_TOOLCHAIN_IMAGE_PREFIX` and
   `EVE_TOOLCHAIN_IMAGE_TAG`.
+- Browser checks declare `[python, browser]` and invoke
+  `/opt/eve/toolchains/browser/bin/eve-browser-python` for headless HTML/SVG,
+  measured geometry, and screenshot artifacts. Probe or image-pull failures
+  report `toolchain_unavailable` before page assertions run.
 - Local k3d can build and import toolchain images with
   `./bin/eh k8s image --toolchains`.
 

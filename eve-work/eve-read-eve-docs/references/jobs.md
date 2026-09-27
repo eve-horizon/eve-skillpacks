@@ -645,6 +645,13 @@ For active jobs, the CLI now exposes the same signals operators previously had t
 - For declared toolchains, `diagnose` renders `runtime_meta.toolchains`
   (`execution_mode`, `requested`, `resolved`, `missing`, `source`) and recent
   provisioning log lines.
+- For browser jobs, inspect `runtime_meta.browser` for the observed Playwright
+  and Chromium versions and `runtime_meta.toolchains` for the inline source
+  image digest or runner init-container `image_ids`. For inline execution, set
+  `EVE_RUNTIME_IMAGE_DIGEST` from the deployed service image; for runner mode,
+  record the actual main pod imageID as well as init imageIDs.
+  Missing, incompatible, blocked-override, launch, and init-image failures are
+  setup failures (`toolchain_unavailable`), not page-rendering results.
 - `eve job follow <job-id>` warns after 60s and 120s of silence. If heartbeat lifecycle events are still arriving, it reports the harness as alive but quiet; otherwise it warns that the run may have stalled.
 - `eve agents runtime-status --org <org-id>` now shows stale pods and active-job counts in the tabular output.
 - `eve system status` now renders agent-runtime health alongside API, orchestrator, worker, and queue state when the backend returns it.

@@ -63,6 +63,7 @@ triggers:
   - eve tailscale
   - eve private endpoint
   - eve toolchain
+  - eve browser runtime
   - eve harness
   - eve harness override
   - eve harness validate
@@ -216,6 +217,7 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 - Pipelines, workflows, triggers, event-driven automation, auto-trigger, event/app/app_link triggers, workflow input forwarding, step optimization, per-step `with_apis`, workflow env_overrides + conditional steps + step-level harness + retry-failed + file refs + Slack notifications, event→trigger observability (trigger_match_count, triggers_evaluated), scoped job tokens (workflow/step/invocation scope intersection into `jobs.token_scope`): `references/pipelines-workflows.md` + `references/events.md`
 - Job lifecycle, scheduling, execution debugging, agent-native monitoring, production hardening, per-job HOME isolation, per-job harness/env overrides, app-link env/CLI injection, learning loop (`system.job.attempt.completed`, carryover context), stuck-job prevention + stale recovery + env-gate scope, scoped job tokens (`jobs.token_scope` axes: `orgfs`/`orgdocs`/`envdb`/`cloud_fs`): `references/jobs.md`
 - Build, release, and deployment behavior: `references/builds-releases.md` + `references/deploy-debug.md`
+- Headless HTML/SVG browser jobs, screenshots, runtime provenance, and setup failures: `references/manifest.md`, then `references/jobs.md` for diagnosis; use `references/deploy-debug.md` when checking image publication or the owning deployment.
 - Private endpoints (Tailscale), worker toolchain-on-demand, app undeploy/delete, custom domains debugging (first-bind-wins, cert-manager TLS, `eve domain list|verify|status|transfer|unbind|remove`), public TCP ingress diagnostics, stable egress (hostNetwork v2), DeployFailure taxonomy + cluster snapshot + manifest_hash from deploy ref + `eve env diagnose`, Platform Sentinel (env health monitoring + Slack alerts): `references/deploy-debug.md`
 - Agents, teams, chat routing, embedded app conversations, agent aliases, staged dispatch, chat delivery, chat progress, structured conversation event streams (`cevt_*`), chat continuity by Eve `thr_*` id, chat regex case-insensitive, agent learning loop hooks, agent-runtime org auto-discovery (no `org_default`): `references/agents-teams.md` + `references/gateways.md`
 - Secrets, auth, access control, identity providers, BYOK model credentials, per-org OAuth credential storage, manifest-driven service token permissions + auto-injected `EVE_SERVICE_TOKEN` (read-only defaults), app-link tokens (`type: app_link`), SSO self-signup email domain restriction (`EVE_SIGNUP_ALLOWED_EMAIL_DOMAINS`), per-agent envdb wildcard scope (built-in roles), app magic-link login opt-in (`x-eve.auth.login_method: magic_link`), magic-link confirmation interstitial (wrap tokens; prevents drive-by scanner redemption), domain-signup v2 rule list (`[{domain, target_org, role}]`), project-scoped redirect allowlist (`x-eve.auth.allowed_redirect_origins`), platform-guaranteed `SameSite=None` on `eve_sso` session cookies for custom-domain apps: `references/secrets-auth.md`
@@ -291,6 +293,7 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 | Connect Google Drive or browse cloud FS | `references/object-store-filesystem.md`, `references/integrations.md` | Mount ID, browse/search results, cloud FS event triggers |
 | Set up private endpoints (Tailscale) | `references/deploy-debug.md`, `references/cli.md` | Endpoint name, in-cluster DNS, health check status |
 | Declare or use toolchains | `references/manifest.md`, `references/harnesses.md` | Toolchain list, init container config, PATH setup |
+| Run headless browser checks in a job | `references/manifest.md`, `references/jobs.md` | Python/browser declaration, wrapper, screenshot receipt, setup diagnosis |
 | Set up agent aliases or vanity names | `references/agents-teams.md` | Alias binding, slug resolution, sync validation |
 | Check chat delivery status or progress | `references/agents-teams.md`, `references/gateways.md` | Delivery status, thread messages, progress updates |
 | Configure event or app triggers for workflows | `references/pipelines-workflows.md`, `references/events.md` | Trigger config, event payload forwarding, matched workflow |

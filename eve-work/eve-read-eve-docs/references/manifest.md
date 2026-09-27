@@ -776,7 +776,7 @@ agents:
     toolchains: [python, rust, java]  # multi-toolchain
 ```
 
-Available toolchains: `python`, `media`, `rust`, `java`, `kotlin`.
+Available toolchains: `python`, `media`, `rust`, `java`, `kotlin`, `browser`.
 
 Workflow steps can override agent toolchain defaults:
 
@@ -789,14 +789,37 @@ workflows:
         toolchains: [media, python]  # override agent default
 ```
 
-Toolchain precedence: workflow step `toolchains` > agent `toolchains` > none.
+Toolchain precedence: workflow step `toolchains` > agent `toolchains` >
+workflow default > none.
 
-Each toolchain is a small container image (~50-300MB) extracted into
+For headless HTML/SVG checks on a supported linux/amd64 runtime, declare
+`toolchains: [python, browser]` on script or agent workflow/pipeline steps and
+run `/opt/eve/toolchains/browser/bin/eve-browser-python script.py`. The browser
+payload bundles Python Playwright 1.63.0 and its matching headless Chromium.
+Render HTML/SVG, measure DOM/SVG geometry, and attach a screenshot and receipt
+to the job. Do not set `PLAYWRIGHT_BROWSERS_PATH`, `LD_LIBRARY_PATH`, or
+`FONTCONFIG_FILE` in browser step `env_overrides`; these are rejected as setup
+failures.
+
+```yaml
+workflows:
+  browser-check:
+    steps:
+      - name: render
+        toolchains: [python, browser]
+        script:
+          run: /opt/eve/toolchains/browser/bin/eve-browser-python verify_page.py
+```
+
+Each toolchain is a separate container image extracted into
 `/opt/eve/toolchains/{name}/`. Inline runtimes use `crane` and the shared
 toolchain cache, then prepend toolchain `bin` dirs to `PATH` and inject
 per-toolchain `env.sh` variables (for example `JAVA_HOME`, `RUSTUP_HOME`).
-Runner-pod mode uses init containers and reports the same
-`runtime_meta.toolchains` shape.
+Worker and agent runner builders add init containers in runner-pod mode.
+Inline mode resolves the configured prefix and version tag to source image
+digests and stores them with `runtime_meta.toolchains`; runner mode records the
+actual pulled init-container `image_ids`. A source digest identifies the image
+that populated a writable cache, not integrity of the extracted files.
 
 Agents without `toolchains` run on the base runtime. If provisioning fails, the
 attempt fails with `result_json.error_code = "toolchain_unavailable"`; inspect
@@ -1041,7 +1064,7 @@ pipelines:
 Step types: `action`, `script`, `agent`, or shorthand `run`.
 
 Pipeline `toolchains` can be declared at pipeline root or step level. Valid
-values are `python`, `media`, `rust`, `java`, and `kotlin`. Script, shorthand
+values are `python`, `media`, `rust`, `java`, `kotlin`, and `browser`. Script, shorthand
 `run`, agent, and `action: { type: run }` steps resolve `step.toolchains >
 pipeline.toolchains > []`. Non-run actions cannot declare step-level
 toolchains, and `action.toolchains` is rejected. The resolved value is stored on
@@ -1112,7 +1135,7 @@ workflows:
 | `steps[].agent` | object | Agent ref: `name`, optional `prompt`/`prompt_file`, `harness`, `harness_profile`, `toolchains` |
 | `steps[].script` | object | Worker-executed script step; accepts `run` or `command` plus optional `timeout`/`timeout_seconds` |
 | `steps[].run` | string | Shorthand for `steps[].script.run`; creates a script child job |
-| `steps[].toolchains` | string[] | Step-level toolchains (`python`, `media`, `rust`, `java`, `kotlin`) |
+| `steps[].toolchains` | string[] | Step-level toolchains (`python`, `media`, `rust`, `java`, `kotlin`, `browser`) |
 | `steps[].harness` | string | Step-level harness override (takes precedence over agent-resolved value) |
 | `steps[].harness_options` | object | Step-level harness options: `model`, `reasoning_effort`, `temperature` (passthrough) |
 | `steps[].harness_profile` | string | Named profile reference; supports `${inputs.<key>}` template expressions |
