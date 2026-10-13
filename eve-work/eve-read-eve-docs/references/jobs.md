@@ -196,6 +196,27 @@ eve job close <job-id> --reason "Done"
 eve job cancel <job-id> --reason "No longer needed"
 ```
 
+### Cancellation
+
+- Executors check job phase before launch, poll every two seconds independently
+  of harness output, and check again before publishing results.
+- On POSIX, cancellation sends `SIGTERM` to the execution process group, then
+  `SIGKILL` after five seconds, including descendants that outlive their parent.
+- Cancellation wins even when the process exits zero: the execution result is
+  `job_cancelled` with exit code 130. The `eve job wait` CLI uses exit code 125
+  for a cancelled job.
+- Dedicated runners carry cancellation through pod startup, HTTP submission,
+  and completion polling. Cancellation requests pod deletion with a five-second
+  termination grace period and deletion of the attempt PVC.
+- Cancelled attempts preserve refreshed Codex credentials and skip git
+  publication and release hooks. Late completion cannot overwrite a concurrent
+  terminal job phase transition.
+
+Use `eve job show <job-id>` and `eve job result <job-id>` to confirm the outcome.
+The polling and termination intervals require responsive job-state reads;
+database/network stalls or unavailable cleanup APIs can delay completion and
+resource deletion.
+
 ### Monitor Execution
 
 ```bash
@@ -836,6 +857,17 @@ Each job attempt gets an isolated HOME directory at `/tmp/eve/agent-homes/<attem
 - `.eve/harnesses/` — Harness config
 
 All directories are mode 0700. Cleaned up after the attempt completes. This prevents agents from reading credentials written for other jobs or the host system.
+
+## Executor Workspace Cleanup
+
+Inline executors clean their own attempt workspace after finalization, honoring
+`EVE_CLEANUP_WORKSPACE_ON_SUCCESS` and `EVE_CLEANUP_WORKSPACE_ON_FAILURE`.
+Cancelled attempts use the failure setting. Orchestrator cleanup cannot remove
+files on another pod's filesystem.
+
+Cleanup preserves session workspaces (`workspace.mode=session`), the configured
+`WORKSPACE_ROOT` itself, paths outside that root, and symlink aliases, including
+aliases to another attempt under the same root.
 
 ## Not Yet Implemented
 

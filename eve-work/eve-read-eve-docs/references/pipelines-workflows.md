@@ -323,6 +323,11 @@ workflows:
   scopes env-sensitive API and app-link resolution; workflows without `env:` keep
   the previous unscoped behavior.
 - `depends_on: [step_names]` wires dependency as `blocks` relations -- the scheduler respects them.
+- Invocation stages every child step in `backlog`, including independent steps,
+  then wires the complete graph before releasing all children to `ready`.
+  Independent steps can start while dependent steps wait for their blockers.
+- If graph wiring fails, no child is released. Staging every step prevents the
+  root from completing while later children are still being created.
 - Each step must define exactly one execution kind: `agent`, `script`, or
   shorthand `run`. `script` and `run` steps create worker-executed script jobs
   with `script_command` and optional `script_timeout_seconds`. Execution is

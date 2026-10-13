@@ -57,70 +57,236 @@
     "docs/plans/app-org-access-and-admin-invites-plan.md": "eve-work/eve-read-eve-docs/references/integrations.md",
     "docs/plans/magic-link-confirmation-interstitial-plan.md": "eve-work/eve-read-eve-docs/references/secrets-auth.md",
     "docs/plans/magic-link-email-silent-drop-plan.md": "eve-work/eve-read-eve-docs/references/observability.md",
-    "docs/plans/job-token-path-and-mount-scope-plan.md": "eve-work/eve-read-eve-docs/references/jobs.md"
+    "docs/plans/job-token-path-and-mount-scope-plan.md": "eve-work/eve-read-eve-docs/references/jobs.md",
+    "docs/system/agent-runtime.md + packages/shared/src/invoke/job-cancellation.ts + packages/shared/src/invoke/workspace-cleanup.ts + packages/db/src/queries/jobs/crud.ts + packages/db/src/queries/jobs/review.ts": "eve-work/eve-read-eve-docs/references/jobs.md"
   },
   "skill_triggers": {
-    "docs/system/agents.md": ["eve-se/eve-bootstrap", "eve-work/eve-read-eve-docs"],
-    "docs/system/manifest.md": ["eve-se/eve-manifest-authoring"],
-    "docs/system/db.md": ["eve-se/eve-manifest-authoring", "eve-design/eve-fullstack-app-design"],
-    "docs/system/user-getting-started-guide.md": ["eve-se/eve-bootstrap", "eve-se/eve-new-project-setup"],
-    "docs/system/pipelines.md": ["eve-se/eve-pipelines-workflows"],
-    "docs/system/secrets.md": ["eve-se/eve-auth-and-secrets"],
-    "docs/system/auth.md": ["eve-se/eve-auth-and-secrets"],
-    "docs/system/identity-providers.md": ["eve-se/eve-auth-and-secrets"],
-    "docs/system/deployment.md": ["eve-se/eve-deploy-debugging"],
-    "docs/system/builds.md": ["eve-se/eve-deploy-debugging"],
-    "docs/system/cli-debugging.md": ["eve-se/eve-deploy-debugging"],
-    "docs/system/ci-cd.md": ["eve-se/eve-verification-plans", "eve-work/eve-read-eve-docs"],
-    "docs/deploy/oss-release-cutover.md": ["eve-se/eve-verification-plans", "eve-se/eve-deploy-debugging", "eve-work/eve-read-eve-docs"],
-    "docs/deploy/container-image-release.md": ["eve-work/eve-read-eve-docs"],
-    "docker/toolchains/browser/": ["eve-se/eve-web-ui-testing-agent-browser", "eve-work/eve-read-eve-docs"],
-    "docs/ideas/agent-native-design.md": ["eve-design/eve-agent-native-design"],
-    "docs/ideas/platform-primitives-for-agentic-apps.md": ["eve-design/eve-agent-native-design"],
-    "docs/plans/cloud-fs-integration-plan.md": ["eve-se/eve-manifest-authoring", "eve-design/eve-fullstack-app-design"],
-    "docs/plans/per-job-harness-override-plan.md": ["eve-se/eve-pipelines-workflows", "eve-se/eve-cli-primitives", "eve-work/eve-job-debugging", "eve-design/eve-agentic-app-design"],
-    "docs/plans/workflow-env-overrides-plan.md": ["eve-se/eve-pipelines-workflows", "eve-se/eve-manifest-authoring"],
-    "docs/plans/custom-domains-plan.md": ["eve-se/eve-deploy-debugging", "eve-se/eve-manifest-authoring", "eve-design/eve-fullstack-app-design", "eve-se/eve-cli-primitives"],
-    "docs/plans/deploy-error-surfacing-plan.md": ["eve-se/eve-deploy-debugging", "eve-se/eve-troubleshooting"],
-    "docs/plans/app-stable-egress-v2-plan.md": ["eve-se/eve-deploy-debugging", "eve-se/eve-manifest-authoring", "eve-design/eve-fullstack-app-design"],
-    "docs/plans/embedded-app-conversation-api-plan.md": ["eve-design/eve-fullstack-app-design", "eve-design/eve-agentic-app-design"],
-    "docs/plans/api-chat-provider-plan.md": ["eve-design/eve-agentic-app-design"],
-    "docs/plans/chat-thread-continuity-plan.md": ["eve-design/eve-agentic-app-design"],
-    "docs/plans/llm-wiki-platform-enhancements.md": ["eve-work/eve-agent-memory"],
-    "docs/plans/managed-db-tls-trust-plan.md": ["eve-se/eve-deploy-debugging"],
-    "docs/plans/platform-sentinel-plan.md": ["eve-se/eve-deploy-debugging", "eve-se/eve-troubleshooting"],
-    "docs/plans/observability-cli-gap-closure-plan.md": ["eve-se/eve-troubleshooting", "eve-se/eve-cli-primitives"],
-    "docs/plans/runtime-skill-materialization-plan.md": ["eve-se/eve-manifest-authoring"],
-    "docs/plans/skills-materialization-fast-path-plan.md": ["eve-se/eve-manifest-authoring"],
-    "docs/plans/app-object-bucket-credentials-plan.md": ["eve-design/eve-fullstack-app-design"],
-    "docs/plans/agent-learning-loop-test-plan.md": ["eve-design/eve-agentic-app-design", "eve-work/eve-job-debugging"],
-    "docs/plans/eve-dashboard-design.md": ["eve-design/eve-fullstack-app-design"],
-    "docs/plans/agent-permissions-plan.md": ["eve-se/eve-auth-and-secrets"],
-    "packages/cli/src/commands/domain.ts": ["eve-se/eve-deploy-debugging", "eve-se/eve-cli-primitives"],
-    "packages/cli/src/commands/init.ts": ["eve-se/eve-new-project-setup", "eve-se/eve-project-bootstrap"],
-    "packages/cli/src/commands/skills.ts": ["eve-se/eve-cli-primitives", "eve-work/eve-read-eve-docs"],
-    "packages/cli/src/commands/traces.ts": ["eve-se/eve-cli-primitives"],
-    "packages/cli/src/commands/docs.ts": ["eve-work/eve-agent-memory"],
-    "apps/orchestrator/src/cron/env-health-watchdog.service.ts": ["eve-se/eve-deploy-debugging", "eve-se/eve-troubleshooting"],
-    "apps/worker/src/deployer/deploy-failure.ts": ["eve-se/eve-deploy-debugging", "eve-se/eve-troubleshooting"],
-    "packages/db/migrations/00090_per_job_harness_overrides.sql": ["eve-work/eve-job-debugging"],
-    "docs/plans/app-branded-invite-emails-phase-1-plan.md": ["eve-se/eve-auth-and-secrets", "eve-design/eve-fullstack-app-design", "eve-se/eve-manifest-authoring"],
-    "docs/plans/app-magic-link-login-opt-in-plan.md": ["eve-se/eve-auth-and-secrets", "eve-design/eve-fullstack-app-design", "eve-se/eve-manifest-authoring"],
-    "docs/plans/app-magic-link-domain-allowlist-plan.md": ["eve-se/eve-auth-and-secrets", "eve-design/eve-fullstack-app-design", "eve-se/eve-manifest-authoring"],
-    "docs/plans/app-invite-redirect-allowlist-plan.md": ["eve-se/eve-auth-and-secrets", "eve-design/eve-fullstack-app-design", "eve-se/eve-manifest-authoring"],
-    "docs/plans/app-org-access-and-admin-invites-plan.md": ["eve-design/eve-fullstack-app-design", "eve-se/eve-auth-and-secrets"],
-    "docs/plans/magic-link-confirmation-interstitial-plan.md": ["eve-se/eve-auth-and-secrets", "eve-se/eve-troubleshooting"],
-    "docs/plans/magic-link-email-silent-drop-plan.md": ["eve-se/eve-auth-and-secrets", "eve-se/eve-troubleshooting"],
-    "docs/plans/job-token-path-and-mount-scope-plan.md": ["eve-se/eve-pipelines-workflows", "eve-work/eve-job-debugging", "eve-se/eve-manifest-authoring"],
-    "apps/api/src/webhooks/ses-feedback.controller.ts": ["eve-se/eve-troubleshooting"],
-    "apps/api/src/mailer/mailer.service.ts": ["eve-se/eve-auth-and-secrets", "eve-se/eve-troubleshooting"],
-    "packages/db/migrations/00093_project_branding.sql": ["eve-se/eve-auth-and-secrets"],
-    "packages/db/migrations/00094_project_auth_config.sql": ["eve-se/eve-auth-and-secrets"],
-    "packages/db/migrations/00095_email_delivery_events.sql": ["eve-se/eve-troubleshooting"],
-    "packages/db/migrations/00096_jobs_token_scope.sql": ["eve-work/eve-job-debugging", "eve-se/eve-pipelines-workflows"],
-    "packages/db/migrations/00097_org_invite_system_created.sql": ["eve-se/eve-auth-and-secrets"],
-    "packages/db/migrations/00098_magic_link_wraps.sql": ["eve-se/eve-auth-and-secrets"],
-    "packages/shared/src/schemas/access-scope.ts": ["eve-se/eve-pipelines-workflows", "eve-work/eve-job-debugging"]
+    "docs/system/agents.md": [
+      "eve-se/eve-bootstrap",
+      "eve-work/eve-read-eve-docs"
+    ],
+    "docs/system/manifest.md": [
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/system/db.md": [
+      "eve-se/eve-manifest-authoring",
+      "eve-design/eve-fullstack-app-design"
+    ],
+    "docs/system/user-getting-started-guide.md": [
+      "eve-se/eve-bootstrap",
+      "eve-se/eve-new-project-setup"
+    ],
+    "docs/system/pipelines.md": [
+      "eve-se/eve-pipelines-workflows"
+    ],
+    "docs/system/secrets.md": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "docs/system/auth.md": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "docs/system/identity-providers.md": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "docs/system/deployment.md": [
+      "eve-se/eve-deploy-debugging"
+    ],
+    "docs/system/builds.md": [
+      "eve-se/eve-deploy-debugging"
+    ],
+    "docs/system/cli-debugging.md": [
+      "eve-se/eve-deploy-debugging"
+    ],
+    "docs/system/ci-cd.md": [
+      "eve-se/eve-verification-plans",
+      "eve-work/eve-read-eve-docs"
+    ],
+    "docs/deploy/oss-release-cutover.md": [
+      "eve-se/eve-verification-plans",
+      "eve-se/eve-deploy-debugging",
+      "eve-work/eve-read-eve-docs"
+    ],
+    "docs/deploy/container-image-release.md": [
+      "eve-work/eve-read-eve-docs"
+    ],
+    "docker/toolchains/browser/": [
+      "eve-se/eve-web-ui-testing-agent-browser",
+      "eve-work/eve-read-eve-docs"
+    ],
+    "docs/ideas/agent-native-design.md": [
+      "eve-design/eve-agent-native-design"
+    ],
+    "docs/ideas/platform-primitives-for-agentic-apps.md": [
+      "eve-design/eve-agent-native-design"
+    ],
+    "docs/plans/cloud-fs-integration-plan.md": [
+      "eve-se/eve-manifest-authoring",
+      "eve-design/eve-fullstack-app-design"
+    ],
+    "docs/plans/per-job-harness-override-plan.md": [
+      "eve-se/eve-pipelines-workflows",
+      "eve-se/eve-cli-primitives",
+      "eve-work/eve-job-debugging",
+      "eve-design/eve-agentic-app-design"
+    ],
+    "docs/plans/workflow-env-overrides-plan.md": [
+      "eve-se/eve-pipelines-workflows",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/custom-domains-plan.md": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-manifest-authoring",
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-cli-primitives"
+    ],
+    "docs/plans/deploy-error-surfacing-plan.md": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-troubleshooting"
+    ],
+    "docs/plans/app-stable-egress-v2-plan.md": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-manifest-authoring",
+      "eve-design/eve-fullstack-app-design"
+    ],
+    "docs/plans/embedded-app-conversation-api-plan.md": [
+      "eve-design/eve-fullstack-app-design",
+      "eve-design/eve-agentic-app-design"
+    ],
+    "docs/plans/api-chat-provider-plan.md": [
+      "eve-design/eve-agentic-app-design"
+    ],
+    "docs/plans/chat-thread-continuity-plan.md": [
+      "eve-design/eve-agentic-app-design"
+    ],
+    "docs/plans/llm-wiki-platform-enhancements.md": [
+      "eve-work/eve-agent-memory"
+    ],
+    "docs/plans/managed-db-tls-trust-plan.md": [
+      "eve-se/eve-deploy-debugging"
+    ],
+    "docs/plans/platform-sentinel-plan.md": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-troubleshooting"
+    ],
+    "docs/plans/observability-cli-gap-closure-plan.md": [
+      "eve-se/eve-troubleshooting",
+      "eve-se/eve-cli-primitives"
+    ],
+    "docs/plans/runtime-skill-materialization-plan.md": [
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/skills-materialization-fast-path-plan.md": [
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/app-object-bucket-credentials-plan.md": [
+      "eve-design/eve-fullstack-app-design"
+    ],
+    "docs/plans/agent-learning-loop-test-plan.md": [
+      "eve-design/eve-agentic-app-design",
+      "eve-work/eve-job-debugging"
+    ],
+    "docs/plans/eve-dashboard-design.md": [
+      "eve-design/eve-fullstack-app-design"
+    ],
+    "docs/plans/agent-permissions-plan.md": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "packages/cli/src/commands/domain.ts": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-cli-primitives"
+    ],
+    "packages/cli/src/commands/init.ts": [
+      "eve-se/eve-new-project-setup",
+      "eve-se/eve-project-bootstrap"
+    ],
+    "packages/cli/src/commands/skills.ts": [
+      "eve-se/eve-cli-primitives",
+      "eve-work/eve-read-eve-docs"
+    ],
+    "packages/cli/src/commands/traces.ts": [
+      "eve-se/eve-cli-primitives"
+    ],
+    "packages/cli/src/commands/docs.ts": [
+      "eve-work/eve-agent-memory"
+    ],
+    "apps/orchestrator/src/cron/env-health-watchdog.service.ts": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-troubleshooting"
+    ],
+    "apps/worker/src/deployer/deploy-failure.ts": [
+      "eve-se/eve-deploy-debugging",
+      "eve-se/eve-troubleshooting"
+    ],
+    "packages/db/migrations/00090_per_job_harness_overrides.sql": [
+      "eve-work/eve-job-debugging"
+    ],
+    "docs/plans/app-branded-invite-emails-phase-1-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/app-magic-link-login-opt-in-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/app-magic-link-domain-allowlist-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/app-invite-redirect-allowlist-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "docs/plans/app-org-access-and-admin-invites-plan.md": [
+      "eve-design/eve-fullstack-app-design",
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "docs/plans/magic-link-confirmation-interstitial-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-se/eve-troubleshooting"
+    ],
+    "docs/plans/magic-link-email-silent-drop-plan.md": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-se/eve-troubleshooting"
+    ],
+    "docs/plans/job-token-path-and-mount-scope-plan.md": [
+      "eve-se/eve-pipelines-workflows",
+      "eve-work/eve-job-debugging",
+      "eve-se/eve-manifest-authoring"
+    ],
+    "apps/api/src/webhooks/ses-feedback.controller.ts": [
+      "eve-se/eve-troubleshooting"
+    ],
+    "apps/api/src/mailer/mailer.service.ts": [
+      "eve-se/eve-auth-and-secrets",
+      "eve-se/eve-troubleshooting"
+    ],
+    "packages/db/migrations/00093_project_branding.sql": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "packages/db/migrations/00094_project_auth_config.sql": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "packages/db/migrations/00095_email_delivery_events.sql": [
+      "eve-se/eve-troubleshooting"
+    ],
+    "packages/db/migrations/00096_jobs_token_scope.sql": [
+      "eve-work/eve-job-debugging",
+      "eve-se/eve-pipelines-workflows"
+    ],
+    "packages/db/migrations/00097_org_invite_system_created.sql": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "packages/db/migrations/00098_magic_link_wraps.sql": [
+      "eve-se/eve-auth-and-secrets"
+    ],
+    "packages/shared/src/schemas/access-scope.ts": [
+      "eve-se/eve-pipelines-workflows",
+      "eve-work/eve-job-debugging"
+    ]
   },
   "composite_triggers": {
     "eve-work/eve-agent-memory": {
@@ -196,6 +362,10 @@
     "packages/shared/src/managed-db/roles.ts",
     "packages/shared/src/pricing/default-rate-card.ts",
     "packages/shared/src/harnesses/model-aliases.ts",
-    "AGENTS.md"
+    "AGENTS.md",
+    "packages/shared/src/invoke/job-cancellation.ts",
+    "packages/shared/src/invoke/workspace-cleanup.ts",
+    "packages/db/src/queries/jobs/crud.ts",
+    "packages/db/src/queries/jobs/review.ts"
   ]
 }
