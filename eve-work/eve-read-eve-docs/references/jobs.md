@@ -201,7 +201,10 @@ eve job cancel <job-id> --reason "No longer needed"
 - Executors check job phase before launch, poll every two seconds independently
   of harness output, and check again before publishing results.
 - On POSIX, cancellation sends `SIGTERM` to the execution process group, then
-  `SIGKILL` after five seconds, including descendants that outlive their parent.
+  `SIGKILL` after five seconds, including tracked descendants that outlive their
+  parent or start a separate process group. Descendant tracking continues through
+  the grace period; signals to tracked descendants require matching PID/start
+  identities to avoid trusting recycled PIDs.
 - Cancellation wins even when the process exits zero: the execution result is
   `job_cancelled` with exit code 130. The `eve job wait` CLI uses exit code 125
   for a cancelled job.

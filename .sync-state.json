@@ -1,8 +1,15 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "e6a74f0841ec3448b3d1861a275e236cab816d41",
-  "last_synced_at": "2026-10-13T15:52:26Z",
+  "last_synced_commit": "5694f5b94c176967926a3a0603fdee30574d15ec",
+  "last_synced_at": "2026-10-13T16:09:15Z",
   "sync_log": [
+    {
+      "commit": "5694f5b94c176967926a3a0603fdee30574d15ec",
+      "commit_short": "5694f5b",
+      "synced_at": "2026-10-13T16:09:15Z",
+      "type": "incremental",
+      "summary": "Updated cancellation guidance for descendants that create separate process groups. The implementation tracks descendant PID/start identity through the termination grace period and guards against signalling recycled identities. Source regression demonstrates the group-only escape and verifies the correction. No hosted rollout or release availability asserted."
+    },
     {
       "commit": "e6a74f0841ec3448b3d1861a275e236cab816d41",
       "commit_short": "e6a74f0",
@@ -66,13 +73,6 @@
       "synced_at": "2026-03-24T12:30:00Z",
       "type": "incremental",
       "summary": "5-commit incremental sync — per-agent API permissions (already documented), x-eve.cli fix trilogy (CLI metadata in jobs, auto-inject with_apis on direct job creation, auto-discover CLI services from manifest for all agent jobs), binary upload fix. CLI auto-discovery is a significant behavioral change: all agent jobs now automatically get app CLIs on PATH without explicit with_apis. CLI-first philosophy audit: strengthened guidance across agents-teams, app-cli, manifest, manifest-authoring, and fullstack-app-design. Added CLI design checklist."
-    },
-    {
-      "commit": "4721440485f22d22256f598671a4cf11dbc2ade2",
-      "commit_short": "4721440",
-      "synced_at": "2026-03-23T17:01:54Z",
-      "type": "incremental",
-      "summary": "0-commit incremental sync — no new eve-horizon changes since the March 20, 2026 sync. Verified the workspace mirror at .eve-horizon-src and re-ran the state-today compliance checks with no documentation updates required."
     }
   ]
 }
