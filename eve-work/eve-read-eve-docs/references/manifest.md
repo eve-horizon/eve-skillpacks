@@ -203,7 +203,18 @@ x-eve:
 
 When `login_method: magic_link`, app SSO hides password login and signup and sends branded magic-link email through Eve API. When `login_method: password_or_magic_link`, password login remains visible and the secondary magic-link request still goes through Eve API for branding and app self-signup enforcement. With `self_signup: false`, unknown emails get generic success but no GoTrue call/email. With `invite_requires_password: false`, invite acceptance establishes the SSO session and redirects to the app without `/set-password`.
 
-Apps can also opt into app-scoped org access and in-app admin invites:
+#### Optional Google sign-in
+
+On an Eve release that includes Google app sign-in, add
+`x-eve.auth.oauth_providers: [google]` to enable the project option. The default
+is `[]`; duplicate entries normalize to one. The deployment operator must also
+enable/configure Google on GoTrue and SSO. `login_method` still selects the email
+controls. Google admission requires an existing Eve user with current app access;
+it does not enrol a domain, create Eve memberships, or accept pending invitations.
+Existing email/session flows keep their own policies. See the Google section of
+`secrets-auth.md` before planning deployment. Drive OAuth is a separate grant.
+
+For app-scoped org access and in-app admin invites:
 
 ```yaml
 x-eve:
