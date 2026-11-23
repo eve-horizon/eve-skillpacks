@@ -172,12 +172,16 @@ services:
       context: ./apps/api
     ports: [3000]
     x-eve:
+      ingress:
+        public: false         # CLIs call the in-cluster URL; set true if browsers call it too
       api_spec:
         type: openapi
       cli:
         name: myapp           # Binary name on $PATH
         bin: cli/bin/myapp     # Path relative to repo root
 ```
+
+Declare `x-eve.ingress` on every service with ports: with no block, the service is public under the `audit` profile but private under `strict`.
 
 The platform automatically makes the CLI available to agents that have `with_apis: [api]`.
 

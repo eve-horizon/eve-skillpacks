@@ -124,6 +124,8 @@ x-eve:
 
 Profile entries are a fallback chain: if the first harness is unavailable, the next is tried. Design profiles around capability needs, not provider loyalty.
 
+Profiles matter more under the `strict` security profile: an agent job with no harness, profile or `x-eve.defaults.harness_preference` fails at dispatch, and runner pods reach only the model APIs of harnesses the project's profiles name (or its secrets are credentials for). Declare every harness agents use in a profile, declare each agent's secrets in `access.secrets` (unbound jobs get only harness keys), and list any other internet host agents call in `x-eve.egress.hosts`. See `references/security-profiles.md` in `eve-read-eve-docs`.
+
 ### Per-Job Harness Overrides
 
 When the *same* agent must run with different brains per request — e.g., per-user-project model selection, BYOK credentials, or a self-hosted endpoint — pass an inline override at dispatch instead of mutating `agents.yaml` per request:
@@ -426,6 +428,7 @@ Declare all access in `.eve/access.yaml` and sync declaratively. This ensures ac
 - [ ] Access groups defined for data-plane segmentation
 - [ ] Agent permission policies appropriate to each agent's role
 - [ ] Access policy declared as code (`.eve/access.yaml`)
+- [ ] Runs under the `strict` profile: harnesses in profiles, agent `access.secrets` declared, agent-called hosts in `x-eve.egress.hosts`, operators granted `secrets:use`
 
 **The Real Test — Is This App Truly Agent-Native?**
 - [ ] Agents can do everything users can (parity)

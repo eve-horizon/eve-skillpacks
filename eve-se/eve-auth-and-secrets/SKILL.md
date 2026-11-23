@@ -221,6 +221,8 @@ This sets `CLAUDE_CODE_OAUTH_TOKEN` / `CLAUDE_OAUTH_REFRESH_TOKEN` (Claude) and 
 
 After each harness invocation, the worker checks if the Codex/Code CLI refreshed `auth.json` during the session. If the token changed, it is automatically written back to the originating secret scope (user/org/project) so the next job starts with a fresh token. This is transparent and non-fatal -- a write-back failure logs a warning but does not affect the job result.
 
+Under the project's `strict` profile (rule `secrets.job_org_write`) a job may write back only to a **project-scope** copy, never to the org's. Keep a project-scope copy of any credential the project's jobs refresh, for example `CODEX_AUTH_JSON_B64`.
+
 For Codex/Code credentials, the sync picks the freshest token across `~/.codex/auth.json` and `~/.code/auth.json` by comparing `tokens.expires_at`.
 
 ## Access Groups + Scoped Access
@@ -341,6 +343,8 @@ Rotate the JWT signing key:
 ## App SSO Integration
 
 Add Eve SSO login to any Eve-deployed app using two shared packages: `@eve-horizon/auth` (backend) and `@eve-horizon/auth-react` (frontend). The platform auto-injects `EVE_SSO_URL`, `EVE_ORG_ID`, `EVE_PROJECT_ID`, and `EVE_API_URL` into deployed services.
+
+**Under a `strict` instance profile**, `/session` serves an app only from its own project's `https` hosts (default env hosts, ingress aliases, verified custom domains, `x-eve.auth.allowed_redirect_origins`), only for people its access policy admits, and returns a one-hour **app audience token** (`aud: eve-app:<project>[:<env>]`, no `orgs` claim) instead of the platform token. The current SDK handles this (orgs from `/auth/app-access`, `X-Eve-Audience` header); upgrade `@eve-horizon/auth` before the instance moves to `strict`. Without the SDK, send `eveAudienceHeaders(token)` on `/auth/me`, `/auth/app-access`, `/auth/app-invites` and `/auth/token/verify`. See `references/auth-sdk.md` in `eve-read-eve-docs`.
 
 ### Magic-Link Login Opt-In (Passwordless Apps)
 
@@ -676,6 +680,29 @@ Validate that all required secrets are set before deploying:
 eve manifest validate --validate-secrets    # check secret references
 eve manifest validate --strict              # fail on missing secrets
 ```
+
+The `--strict` flag only fails on missing secrets; it is unrelated to the `strict` security profile below.
+
+### Secrets and Access Under the Strict Profile
+
+When a project runs under the `strict` security profile (see `references/security-profiles.md` in `eve-read-eve-docs`):
+
+- **Write-only values:** `eve secrets export` gets 403. `ensure` shows a generated value once, in its own response; `eve github setup` returns the webhook secret only when it creates it (or with `--regenerate`).
+- **System secrets:** reach the project only when the instance shares them by name (`eve system settings set secrets.system_shared_keys "KEY_A,KEY_B"`, system admin); otherwise set them at org or project scope.
+- **Job secrets:** a job whose agent `access.secrets` and workflow step `secrets:` declare nothing gets only its harness provider keys and the keys its env overrides reference. Declare what each job needs; starting such work needs `secrets:use`.
+- **GitHub webhooks:** each project needs its own `GITHUB_WEBHOOK_SECRET` (`eve github setup`).
+- **User secrets** named like routing settings (`*_BASE_URL`, proxies, TLS trust) or code-loading names are left out of jobs; set those at project or org scope.
+- **Operator rights:** `secrets:use`, `envdb:export` and `jobs:harness_override` come only from admin/owner roles, bindings and custom roles. Grant them before the flip:
+
+```bash
+eve access roles create operator --org <org_id> --scope project --permissions secrets:use,envdb:export,jobs:harness_override
+eve access bind --org <org_id> --project <project_id> --user <user_id> --role operator
+```
+
+- **Project access:** an org `member` gets nothing on a project from the org role alone; add a project membership or binding.
+- **Approvals:** job approve/reject and `eve pipeline approve` need a person's own token.
+
+On every profile, `${secret.*}` and `${managed.*}` environment values, `EVE_SERVICE_TOKEN` and app-link tokens reach a service through its own Kubernetes Secret (`<env>-<service>-eve-secrets`) via `secretKeyRef`; the app sees the same env vars.
 
 ### Local Secrets File
 

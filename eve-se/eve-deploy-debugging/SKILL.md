@@ -109,6 +109,27 @@ eve env diagnose <project> <env>
 
 `eve env diagnose` surfaces a typed `last_deploy_failure` (kind, service, pod, namespace, message), the live K8s state, and `manifest_hash` of the deployed release versus the latest sync — use this to spot applied-release drift before re-running. The CLI no longer hides failures behind a bare `HTTP request failed`.
 
+### Refused Under the Strict Profile
+
+A project on the `strict` security profile refuses deploys, syncs and jobs that `audit` only records. When a refusal names a manifest field, a security rule, or started right after a profile change:
+
+1. Ask a system admin for `eve doctor security --project <id>`: it lists findings by rule and the project's effective profile.
+2. Fix the manifest or repo (table below), then `eve project sync` and redeploy. Runners read egress hosts from the last explicit sync, so sync even when only `x-eve.egress.hosts` changed.
+3. If the fix needs platform work (an egress provider, NetworkPolicy enforcement), the system admin can set the project back to `audit` at once: `eve system security profile audit --project <id>`.
+
+| Symptom | Fix |
+|---|---|
+| Routed service has no host or 404s after the flip | Add `x-eve.ingress.public: true` (and `port`); a service with ports and no ingress block is private under `strict` |
+| Deploy refused naming `x-eve.security.run_as_user` | Numeric `USER uid:gid` in the Dockerfile, or `x-eve.security.run_as_user`/`run_as_group` |
+| Deploy refused for `networking.egress: stable` | Remove stable egress; it is not allowed under `strict` |
+| Deploy refused naming `${managed.<db>.roles.<role>.url}` | Declare a DB role and use its URL in long-running services; keep the owner URL in `role: job` migrations |
+| "egress allow lists need a provider (EVE_EGRESS_FQDN_PROVIDER)" | Platform operator configures the provider; project stays on `audit` until then |
+| Outbound calls to an internet host time out | Add the host to `x-eve.egress.hosts`; sync and redeploy |
+| Another project's in-cluster calls are refused | Export the API through an app link with a grant for that env |
+| Sync 400 "Environment approval gates are not enforced by Eve" | Remove `environments.<env>.approval` |
+
+Full checklist: `eve-read-eve-docs` → `references/security-profiles.md`.
+
 ### Custom Domains
 
 Custom hostnames are declared in the manifest under `x-eve.ingress.domains` and bound on first deploy. To operate them:
@@ -291,7 +312,7 @@ Production disk management for agent workspaces:
 
 ## Managed DB TLS
 
-Managed Postgres now ships a trusted CA chain to apps. **Do not** set `rejectUnauthorized: false` or `ssl: { rejectUnauthorized: false }` in service code — verified TLS is the default. If a client errors on cert verification, check that the service is reading `${managed.<db>.url}` rather than a hand-crafted DSN.
+Managed Postgres now ships a trusted CA chain to apps. **Do not** set `rejectUnauthorized: false` or `ssl: { rejectUnauthorized: false }` in service code — verified TLS is the default. If a client errors on cert verification, check that the service is reading the platform-provided URL (`${managed.<db>.roles.<role>.url}` in long-running services, `${managed.<db>.url}` in migration jobs) rather than a hand-crafted DSN.
 
 ## Stable Egress (Allowlisted Source IPs)
 
@@ -305,7 +326,7 @@ services:
         egress: stable      # default is 'nat'
 ```
 
-The deployer schedules the pod on the stable-egress node group with `hostNetwork: true` so traffic exits via that node's IGW path. Only opt in when needed (it bypasses NAT and constrains scheduling). See `eve-manifest-authoring` for the full field shape.
+The deployer schedules the pod on the stable-egress node group with `hostNetwork: true` so traffic exits via that node's IGW path. Only opt in when needed (it bypasses NAT and constrains scheduling). The `strict` security profile refuses it. See `eve-manifest-authoring` for the full field shape.
 
 ## Related Skills
 

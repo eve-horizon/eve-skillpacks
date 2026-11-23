@@ -27,6 +27,7 @@ cat .eve/manifest.yaml | yq '.environments'   # Environments declared
 - [ ] Environments match deployment targets (e.g., `staging`, `production`)
 - [ ] Pipelines declared if build/deploy automation exists
 - [ ] Variable interpolation uses `${EVE_*}` patterns, not hardcoded values
+- [ ] Ready for the `strict` security profile: every service with `ports` declares `x-eve.ingress.public` (true or false); images set a numeric non-root `USER` or the service sets `x-eve.security.run_as_user`; internet hosts are listed in `x-eve.egress.hosts`; long-running services use `${managed.<db>.roles.<role>.url}`, not the owner URL; no `environments.<env>.approval`
 
 ### Why This Matters
 
@@ -115,6 +116,8 @@ done
 - [ ] Vanity aliases (if configured) resolve correctly
 - [ ] Custom domains (if configured) have valid TLS certificates
 - [ ] No services require `kubectl port-forward` to access
+- [ ] Every service with `ports` declares `x-eve.ingress.public: true` or `false` explicitly (with no block, a service is public under `audit` but private under `strict`)
+- [ ] Internal services (`public: false`) are not in the reachability loop above; check them from inside the env instead
 
 ### Why This Matters
 

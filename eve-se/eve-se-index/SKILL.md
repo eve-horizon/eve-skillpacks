@@ -27,6 +27,7 @@ Eve SE is for app developers using Eve to deploy and run their apps. It does not
 | Connect an existing repo to Eve (already authed) | `eve-project-bootstrap` |
 | Implement a plan via Eve jobs | `eve-plan-implementation` |
 | Edit the manifest | `eve-manifest-authoring` |
+| Build or fix an app for the `strict` security profile | `eve-manifest-authoring` (Building for Strict), then `eve-deploy-debugging` for refusals |
 | Configure auth + secrets | `eve-auth-and-secrets` |
 | Local docker-compose dev loop | `eve-local-dev-loop` |
 | Deploy to staging + debug | `eve-deploy-debugging` |
@@ -40,7 +41,7 @@ Eve SE is for app developers using Eve to deploy and run their apps. It does not
 ## Default Workflow (Local -> Staging)
 
 1. Run locally with Docker Compose: `eve-local-dev-loop`.
-2. Ensure manifest matches runtime: `eve-manifest-authoring`.
+2. Ensure manifest matches runtime, and that it also deploys under the `strict` security profile: `eve-manifest-authoring`.
 3. Set secrets and auth: `eve-auth-and-secrets`.
 4. Deploy to staging and debug: `eve-deploy-debugging`.
 

@@ -99,10 +99,18 @@ services:
         class: db.p1
         engine: postgres
         engine_version: "16"
+        roles:
+          - name: app
+            grants: readwrite      # readwrite | readonly | { schema: <name>, owner: true }
 ```
 
 Not deployed to K8s — provisioned by the orchestrator on first deploy.
-Reference managed values elsewhere: `${managed.db.url}`.
+Reference managed values elsewhere with `${managed.db.<field>}`:
+
+- Long-running services connect as a declared role: `DATABASE_URL: ${managed.db.roles.app.url}`. Under the `strict` profile a service that reads the owner's `${managed.db.url}` or `${managed.db.password}` is refused at deploy.
+- Migration jobs (`x-eve.role: job`) use the owner: `${managed.db.url}`. `readwrite`/`readonly` roles cannot create objects.
+- A component that migrates its own schema (such as an auth server) gets a schema-owner role: `grants: { schema: auth, owner: true }`.
+- At most 8 roles per database. Each login gets its class's connection limit (25, 100 or 200 for `db.p1`/`p2`/`p3`); size pools within it.
 
 ## Eve-Migrate for Database Migrations
 
@@ -113,10 +121,13 @@ services:
   migrate:
     image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.url}   # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
+      security:          # the migrate image sets no USER; strict needs a numeric one
+        run_as_user: 1000
+        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -167,6 +178,7 @@ and add `schema: eve/compose/v2`. Keep ports and env keys the same.
 
 - Provide `image` and optionally `build` (context and dockerfile).
 - Use `ports`, `environment`, `healthcheck`, `depends_on` as needed.
+- **Declare `x-eve.ingress` on every service with `ports`**: `public: true` for routed services, `public: false` for internal ones. With no block, a service is public under the `audit` profile but private (unreachable from outside) under `strict`.
 - Use `x-eve.external: true` and `x-eve.connection_url` for externally hosted services.
 - Use `x-eve.role: job` for one-off services (migrations, seeds). For database migrations, prefer Eve's `eve-migrate` image (see below).
 
@@ -182,6 +194,10 @@ services:
       dockerfile: Dockerfile        # Optional, defaults to context/Dockerfile
     # image: api      # optional if using build; managed registry derives this
     ports: [3000]
+    x-eve:
+      ingress:
+        public: true                # always explicit: true (routed) or false (internal)
+        port: 3000
 ```
 
 Note: Every deploy pipeline should include a `build` step before `release`. The build step creates tracked BuildSpec/BuildRun records and produces image digests that releases use for deterministic deployments.
@@ -235,9 +251,32 @@ services:
 ```
 
 - `ingress.domains` are bound on first deploy: the **first env** to deploy with a hostname owns it; other envs that reference the same hostname log `owned by environment "<A>"` and skip rendering. Operate ownership with `eve domain list|verify|status|transfer|unbind|remove` (see `eve-deploy-debugging`).
-- `networking.egress: stable` schedules the pod on the stable-egress node group with `hostNetwork: true`. It bypasses NAT and constrains scheduling — only opt in when needed.
+- `networking.egress: stable` schedules the pod on the stable-egress node group with `hostNetwork: true`. It bypasses NAT and constrains scheduling — only opt in when needed. The `strict` profile refuses it.
 
 See `references/manifest.md` for the full field shape (validation rules, max counts, per-env overrides).
+
+## Building for Strict
+
+Eve's security profiles decide whether hardening rules are recorded (`audit`) or enforced (`strict`); `legacy` is deprecated in 0.1.330 and removed in 0.1.331. Author every manifest so it deploys under `strict`: the same manifest works under `audit`. A system admin checks readiness with `eve doctor security --project <id>` and flips with `eve system security profile strict --project <id>` (back out with `audit`).
+
+1. **Ingress on every service with ports.** `x-eve.ingress.public: true` on routed services, `public: false` on internal ones. A routed service with no block becomes unreachable from outside under `strict`.
+2. **Numeric non-root user.** Every service and `role: job` service runs with the restricted Pod Security context. Use a numeric `USER 1000:1000` in the Dockerfile, or set it in the manifest:
+   ```yaml
+   x-eve:
+     security:
+       run_as_user: 1000          # needed when the image says USER node, root, or nothing
+       run_as_group: 1000
+       # capabilities: [NET_BIND_SERVICE]   # only to bind a port below 1024 as non-root
+       # run_as_root: true                  # opt-out; namespace drops to baseline
+   ```
+   Allowed capabilities: `NET_BIND_SERVICE`, `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`. Unknown fields fail validation. No `networking.egress: stable`.
+3. **Every internet host declared.** List what services and jobs call in `x-eve.egress.hosts` (project level for all pods and runners; service level for that service): host name, `*.` one-label pattern, or `{ name | pattern, port }` (default 443), at most 50 per list. Runners already reach their harness model APIs and the repo's git host; apps reach nothing undeclared. Run `eve project sync` after changing hosts (runners read the last explicit sync), and redeploy services.
+4. **Cross-project calls through app links.** Under `strict` a service admits only the Eve API, the project's own namespaces and runners, the ingress controller on its routed port, and app-link consumers with a live grant. Public TCP listeners (`x-eve.tcp_ingress`) are not admitted.
+5. **Declared database roles.** Long-running services use `${managed.<db>.roles.<role>.url}`; only `role: job` services use `${managed.<db>.url}`.
+6. **Jobs declare what they need.** Agent `access.secrets` / step `secrets:` for every secret beyond the harness key; a harness, profile or `x-eve.defaults.harness_preference`; no reserved names in `env_overrides` (`LD_PRELOAD`, `PYTHONPATH` and similar); no legacy pipeline-runner `run` steps (use `script:`); no checkout settings that reroute model traffic or hand credentials to MCP servers.
+7. **No environment `approval`.** Eve does not enforce it; `strict` sync refuses it. Remove `environments.<env>.approval`.
+
+Full checklist, rule ids and the refusal table: `eve-read-eve-docs` → `references/security-profiles.md`.
 
 ## Project Branding And Auth
 
@@ -335,7 +374,7 @@ browser/client-side code. Services can override these in their `environment` sec
 
 - Env interpolation: `${ENV_NAME}`, `${PROJECT_ID}`, `${ORG_ID}`, `${ORG_SLUG}`, `${COMPONENT_NAME}`.
 - Secret interpolation: `${secret.KEY}` pulls from Eve secrets or `.eve/dev-secrets.yaml`.
-- Managed DB interpolation: `${managed.<service>.<field>}` resolves at deploy time.
+- Managed DB interpolation: `${managed.<service>.<field>}` resolves at deploy time; declared roles use `${managed.<service>.roles.<role>.url}`.
 - Use `.eve/dev-secrets.yaml` for local overrides; set real secrets via the API for production.
 
 ## Eve extensions
@@ -345,7 +384,8 @@ browser/client-side code. Services can override these in their `environment` sec
 - Agent packs via `x-eve.packs` with optional `x-eve.install_agents` defaults.
 - Agent config paths via `x-eve.agents.config_path` and `x-eve.agents.teams_path`.
 - Chat routing config via `x-eve.chat.config_path`.
-- Service extensions under `x-eve` (ingress, role, api specs, worker pools, cli, object_store, networking, permissions).
+- Service extensions under `x-eve` (ingress, role, api specs, worker pools, cli, object_store, networking, permissions, security, egress).
+- Project-level internet allow list via `x-eve.egress.hosts` (see Building for Strict).
 - API specs: `x-eve.api_spec` or `x-eve.api_specs` (spec URL relative to service by default).
 - App CLI: `x-eve.cli` declares an agent-friendly CLI for the service (see below).
 - Toolchains: agent-level `toolchains` declarations inject on-demand runtimes (see below).

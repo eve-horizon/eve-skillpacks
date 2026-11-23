@@ -81,12 +81,13 @@ services:
 2. **Use managed DB for Postgres.** Declare `x-eve.role: managed_db` and let the platform provision, connect, and inject credentials. No manual connection strings.
 3. **Mark external services explicitly.** Use `x-eve.external: true` with `x-eve.connection_url` for services hosted outside Eve (Redis, third-party APIs).
 4. **Use `x-eve.role: job` for one-off tasks.** Migrations, seeds, and data backfills are job services, not persistent processes.
-5. **Expose ingress intentionally.** Only services that need external HTTP access get `x-eve.ingress.public: true`. Internal services communicate via cluster networking.
+5. **Expose ingress intentionally, and always explicitly.** Services that need external HTTP access get `x-eve.ingress.public: true`; every other service with ports gets `public: false` and is reached over cluster networking. Never leave a service with ports and no `x-eve.ingress` block: it is public under the `audit` profile and private under `strict`, so its reachability would change with the profile.
 6. **Choose a hostname strategy early.** Every public service gets a generated platform URL by default. Layer on `x-eve.ingress.alias` for a friendlier platform-subdomain (`ingest.eve.example.com`), or `x-eve.ingress.domains: [limelee.com]` to bring your own domain. Custom domains are env-scoped and first-bind-wins — design which environment owns the apex (usually `production`) before declaring it. See `eve-manifest-authoring` and `eve-deploy-debugging` for declaration and DNS verification flow.
+7. **Design for the `strict` security profile from day one.** Projects can be moved from `audit` to `strict`, which enforces what `audit` only records: numeric non-root image users (`x-eve.security`), declared internet hosts (`x-eve.egress.hosts`), declared DB roles instead of the owner URL in long-running services, cross-project calls through app links, and no environment `approval` key. A manifest built this way runs unchanged under both. Checklist: `eve-manifest-authoring` → Building for Strict.
 
 ### Stable Outbound IPs (Egress)
 
-Most apps don't care about their outbound source IP — but if you integrate with vendors that allowlist source IPs (cameras, payment processors, partner APIs with strict source-IP rules), declare opt-in stable egress at the service level. The platform schedules the pod onto a public-egress node group with `hostNetwork: true`, giving the service a stable, predictable outbound path instead of a shared NAT mapping. Treat this as a deliberate architectural choice for the one or two services that need it — not a default.
+Most apps don't care about their outbound source IP — but if you integrate with vendors that allowlist source IPs (cameras, payment processors, partner APIs with strict source-IP rules), declare opt-in stable egress at the service level. The platform schedules the pod onto a public-egress node group with `hostNetwork: true`, giving the service a stable, predictable outbound path instead of a shared NAT mapping. Treat this as a deliberate architectural choice for the one or two services that need it — not a default. The `strict` security profile refuses stable egress, so keep such services in a project that stays on `audit`.
 
 ### App Object Storage
 
@@ -153,9 +154,11 @@ services:
     ports: [3000]
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.roles.app.url}   # declared role, not the owner URL
       CORS_ORIGIN: "https://myapp.eve.example.com"
-    # No x-eve.ingress — API is internal only
+    x-eve:
+      ingress:
+        public: false                       # internal only, reached via web's /api/ proxy
 
   web:
     build:
@@ -172,14 +175,20 @@ services:
         public: true
         port: 80
         alias: myapp                        # https://myapp.{org}-{project}-{env}.eve.example.com
+      security:                             # stock nginx runs as root on port 80; under strict it needs this opt-out
+        run_as_root: true                   # (or a non-root nginx image with a numeric USER on a port >= 1024)
+        capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
 
   migrate:
     image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.url}       # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
+      security:                             # the migrate image sets no USER; strict needs a numeric one
+        run_as_user: 1000
+        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -191,6 +200,9 @@ services:
         class: db.p1
         engine: postgres
         engine_version: "16"
+        roles:
+          - name: app
+            grants: readwrite
 ```
 
 ### The nginx Proxy
@@ -237,7 +249,7 @@ db/
     20260315000000_add_status_column.sql
 ```
 
-Mount migrations into the container via `x-eve.files`. The migrate step in the pipeline runs after deploy (the managed DB must be provisioned first).
+Mount migrations into the container via `x-eve.files`. The migrate step in the pipeline runs after deploy (the managed DB must be provisioned first). The image sets no `USER`, so under the `strict` profile give the migrate service `x-eve.security.run_as_user`/`run_as_group`, as in the manifest above.
 
 **Do not use TypeORM, Knex, or Flyway migrations** — they add complexity and diverge from the Eve platform's migration tracking. The eve-migrate runner gives parity between local dev and staging.
 
@@ -266,7 +278,7 @@ RUN groupadd --gid 1000 node || true && useradd --uid 1000 --gid node --shell /b
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json ./
-USER node
+USER 1000:1000
 ENV NODE_ENV=production PORT=3000
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
@@ -296,7 +308,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-**Conventions**: node:22-slim base, pnpm via corepack, frozen lockfiles, non-root user (API), health checks on both services.
+**Conventions**: node:22-slim base, pnpm via corepack, frozen lockfiles, numeric non-root user (API), health checks on both services. Write `USER` as a number (`USER 1000:1000`, the `node` user), not a name: the `strict` profile reads the user from the image config and refuses a name, root or no `USER`. The stock nginx image runs as root, hence the `x-eve.security` opt-out on `web` above.
 
 ## Database Design
 
@@ -313,9 +325,12 @@ services:
         class: db.p1
         engine: postgres
         engine_version: "16"
+        roles:
+          - name: app
+            grants: readwrite
 ```
 
-Reference the connection URL in other services: `${managed.db.url}`.
+Long-running services connect as a declared role (`${managed.db.roles.app.url}`); only migration jobs use the owner URL (`${managed.db.url}`), which the `strict` profile refuses in long-running services. A component that migrates its own schema, such as an auth server, gets a schema-owner role (`grants: { schema: auth, owner: true }`). Each login gets its class's connection limit (25/100/200 for `db.p1`/`p2`/`p3`): size pools to fit.
 
 ### Schema Strategy
 

@@ -202,6 +202,11 @@ Agent-runtime auto-discovers orgs at startup; you no longer need an `org_default
 - Confirm deploy job succeeded (`eve job result`).
 - Validate ingress host pattern: `{service}.{orgSlug}-{projectSlug}-{env}.{domain}`.
 - Ensure service port matches `x-eve.ingress.port`.
+- Confirm the service declares `x-eve.ingress.public: true`. A service with ports and no `x-eve.ingress` block is private under the `strict` security profile, so it loses its host when the project moves to `strict`.
+
+### Refused Under the `strict` Security Profile
+
+Deploys, syncs or jobs that worked under `audit` can be refused once a project is `strict` (numeric image user, declared egress hosts, declared DB role instead of the owner URL, no environment `approval`, checkout settings, job secrets). Ask a system admin for `eve doctor security --project <id>`, fix the manifest or repo, `eve project sync`, and redeploy. See `eve-deploy-debugging` → Refused Under the Strict Profile.
 
 ## Escalation
 
