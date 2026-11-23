@@ -9,6 +9,7 @@
 - `references/pipelines-workflows.md` for pipeline/job wiring in manifests.
 - `references/secrets-auth.md` for secret declaration and resolution order.
 - `references/overview.md` for core platform concepts before editing complex files.
+- `references/security-profiles.md` when the project runs, or will run, under the `strict` security profile.
 
 ## Ask If Missing
 - Confirm target manifest path and environment names.
@@ -79,9 +80,11 @@ services:
     ports: [3000]
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.roles.app.url}   # declared role, not the owner URL
       CORS_ORIGIN: "https://my-project.eve.example.com"
-    # No x-eve.ingress — API is internal, reached via web's /api/ proxy
+    x-eve:
+      ingress:
+        public: false   # internal, reached via web's /api/ proxy; say so explicitly
 
   web:
     build:
@@ -98,14 +101,20 @@ services:
         public: true
         port: 80
         alias: my-project
+      security:          # stock nginx runs as root on port 80; under strict it needs this opt-out
+        run_as_root: true   # (or a non-root nginx image with a numeric USER on a port >= 1024)
+        capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
 
   migrate:
     image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.url}   # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
+      security:          # the migrate image sets no USER; strict needs a numeric one
+        run_as_user: 1000
+        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -118,6 +127,9 @@ services:
         engine: postgres
         engine_version: "16"
         extensions: [postgis, pgvector, pg_trgm]
+        roles:
+          - name: app
+            grants: readwrite
 
 environments:
   sandbox:
@@ -149,7 +161,9 @@ pipelines:
 Key patterns:
 - **`eve-migrate`** for database migrations — plain SQL files mounted via `x-eve.files`. Runs after deploy because the managed DB must be provisioned first.
 - **nginx reverse proxy** on the web service proxies `/api/` to the internal API via `API_SERVICE_HOST: ${ENV_NAME}-api` (k8s service DNS). No CORS, no hard-coded hostnames.
-- **`${managed.db.url}`** — connection string injected by Eve for managed databases.
+- **Explicit ingress on every service with ports** — `public: true` on the routed `web`, `public: false` on the internal `api`. A service with ports and no `x-eve.ingress` block is public under `legacy`/`audit` and private under `strict`, so never rely on the default.
+- **`${managed.db.roles.app.url}`** for the long-running API and **`${managed.db.url}`** (the owner) only in the `role: job` migration. The `strict` profile refuses a long-running service that reads the owner URL or password.
+- **Images run as a numeric non-root user** under `strict`: a numeric `USER` in each Dockerfile, or `x-eve.security.run_as_user`. See `references/security-profiles.md` for the full checklist.
 - **`managed.extensions`** — optional managed Postgres extensions. Plain extensions are `postgis`, `pgvector`, `pg_trgm`, `btree_gist`, `hstore`, and `citext`. `pgvector` installs as PostgreSQL extension `vector`; extension removal is sticky and does not run `DROP EXTENSION`. `pg_cron` is provider-gated and only validates when the platform enables `EVE_MANAGED_DB_ENABLED_PRELOAD_EXTENSIONS=pg_cron` and preloads it on the backing Postgres; Eve installs it in the instance admin database (`postgres`) per the AWS RDS model. `timescaledb` is not declarable on AWS RDS.
 - **Smoke test** validates the deployed services end-to-end before pipeline success.
 
@@ -433,7 +447,10 @@ Supported Compose fields: `image`, `build`, `environment`, `ports`, `depends_on`
 | `storage` | object | Persistent volume configuration |
 | `managed` | object | Managed DB config (requires `role: managed_db`) |
 | `object_store` | object | App object store bucket declarations |
-| `networking` | object | `{ egress: 'nat' \| 'stable' }` (default `nat`). See Stable Egress below. |
+| `networking` | object | `{ egress: 'nat' \| 'stable' }` (default `nat`). See Stable Egress below. Refused under `strict`. |
+| `security` | object | How the service runs under `strict` Pod Security: `{ run_as_user?: number, run_as_group?: number, run_as_root?: boolean, capabilities?: string[] }`. See Pod Security below. |
+| `egress` | object | `{ hosts: [...] }`: internet hosts this service's pods may reach under `strict` host allow lists, beside the project list. See Egress Host Allow Lists below. Not the same as `networking.egress`. |
+| `tcp_ingress` | object | Public raw TCP listeners. See Public TCP Ingress below. Not admitted under `strict`. |
 | `permissions` | array | Additional permissions for the service's `EVE_SERVICE_TOKEN` |
 | `audit_log_table` | string | Optional table queried by `eve env diagnose --request` |
 | `request_id_column` | string | Optional request ID column for audit logs (default `request_id`) |
@@ -443,7 +460,7 @@ Notes:
 - `x-eve.role: managed_db` marks a service as a platform-provisioned database.
 - `spec_url` can be relative (resolved against service URL) or absolute.
 - `spec_path` is supported only for local `file://` repos.
-- If a service exposes ports and the cluster domain is configured, Eve creates ingress by default. Set `x-eve.ingress.public: false` to disable.
+- **Declare ingress on every service with ports.** A service is public only with `x-eve.ingress.public: true`; an `x-eve.ingress` block without it is private. A service with ports and **no** `x-eve.ingress` block is public under the `legacy` and `audit` profiles (`audit` records a `ports.implicit_public` finding) and private under `strict`: no Ingress, default host, alias or domain, and the ingress controller cannot reach it. Write `public: true` on every routed service and `public: false` on every internal one so the profile does not matter. When a service stops being public, its next deploy removes the Ingress Eve made for it.
 - `ingress.alias` creates a vanity hostname: `{alias}.{domain}` instead of the default `{service}.{orgSlug}-{projectSlug}-{env}.{domain}`. Useful for user-facing apps that need a clean URL.
 - `ingress.domains` brings your own domain names (e.g., `["limelee.com", "www.limelee.com"]`). Declare it either on the base service or in `environments.<env>.overrides.services.<svc>.x-eve.ingress.domains`. `eve project sync` registers both forms; a hostname declared in exactly one env override is bound to that env during sync. Each domain gets a separate K8s Ingress with per-domain TLS via cert-manager HTTP-01. Max 10 per service. Domains under the platform domain are rejected — use `alias` instead. All three ingress types (primary, alias, custom domain) coexist and route to the same backend.
 - `ingress.timeout` sets nginx-ingress request/response timeout for the service's primary, alias, and custom-domain ingresses. Use lowercase durations such as `30s`, `5m`, or `30m`. Default: `EVE_DEFAULT_INGRESS_TIMEOUT=300s`; range: `1s`-`30m`. Use Eve jobs for longer batch work.
@@ -464,10 +481,21 @@ services:
         engine: postgres
         engine_version: "16"
         extensions: [postgis, pgvector]
+        roles:                              # optional least-privilege logins
+          - name: app                       # ^[a-z][a-z0-9_]{0,15}$, unique per database
+            grants: readwrite               # readwrite | readonly
+          - name: auth
+            grants: { schema: auth, owner: true }   # owns one schema (0.1.330)
 ```
 
 Supported plain extensions are `postgis`, `pgvector`, `pg_trgm`, `btree_gist`, `hstore`, and `citext`. `pg_cron` is provider-gated; `timescaledb` is still not declarable on AWS RDS.
 Preload-required candidates such as `pg_cron` and `timescaledb` are not declarable yet.
+
+**Roles.** Every managed DB has one owner login (`${managed.<db>.url}`, used by `eve db` commands). `roles` declares extra logins for app runtimes, read with `${managed.<db>.roles.<name>.url|username|password}` (same host, port and database as the owner):
+- `readwrite` grants `SELECT, INSERT, UPDATE, DELETE` on tables and `SELECT, USAGE` on sequences in `public`; `readonly` grants `SELECT`. Grants cover objects the owner creates later (default privileges). Neither can create objects: run migrations as a `role: job` service with the owner URL, or use a schema-owner role.
+- `{ schema: <name>, owner: true }` makes a role that owns one schema: DDL there, no grants of its own in `public`. Use it for a component that migrates its own schema, such as an auth server. The schema is a plain lower-case identifier, never `public`, `pg_*` or `information_schema`, with one owner role.
+- At most 8 roles per database. Roles added later are created on the next deploy; removed roles are dropped. `eve db rotate-credentials` rotates them with the owner. Roles need the local managed DB provider.
+- **Under `strict`** (rule `managed_db.owner_url`) a long-running service whose environment, command or entrypoint reads `${managed.<db>.url}` or `${managed.<db>.password}` is refused at deploy. Use a declared role's URL there; `role: job` services keep the owner credential. See `references/database-ops.md` for connection limits.
 
 ### App Object Store Buckets (`x-eve.object_store`)
 
@@ -581,6 +609,80 @@ services:
   `udp-diag.py` helper in `deployment-instance-repo/scripts/stable-egress/`
   (run inside the pod; same-socket STUN should report
   `endpoint-independent (good)`).
+- Under the project's `strict` profile (rule `isolation.pod_security`)
+  `egress: stable` is refused. Keep stable-egress services in a project that
+  stays on `audit`, or remove the opt-in before the flip.
+
+### Pod Security (`x-eve.security`)
+
+Under the project's `strict` profile (rule `isolation.pod_security`) every
+service and `role: job` service runs with the restricted Pod Security context
+(`seccompProfile: RuntimeDefault`, no service account token, no privilege
+escalation, all capabilities dropped, `runAsNonRoot`) and a **numeric** user.
+Under `legacy` and `audit` these fields change nothing; `audit` records what
+`strict` would do.
+
+| Field | Description |
+|-------|-------------|
+| `run_as_user` | Numeric uid (`runAsUser`). Wins over the image's own `USER`. |
+| `run_as_group` | Numeric gid (`runAsGroup`). |
+| `run_as_root` | `true` lets the containers run as root; the other controls stay. |
+| `capabilities` | Added back after dropping all: `NET_BIND_SERVICE`, `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`. |
+
+- An image whose `USER` is numeric (`1000` or `1000:1000`) needs no fields: the deployer reads it from the image config with `crane config`.
+- An image whose `USER` is a name (`USER node`), root or unset, or whose config the worker cannot read, needs `run_as_user` (and usually `run_as_group`) or `run_as_root: true`. Otherwise the strict deploy, or the job, is refused with a message naming these fields.
+- A non-root process that binds a port below 1024 needs `capabilities: [NET_BIND_SERVICE]`, or a port of 1024 and above.
+- `run_as_root` or any capability beyond `NET_BIND_SERVICE` puts the namespace's Pod Security level at `baseline` instead of `restricted`.
+- Unknown fields under `x-eve.security` fail manifest validation.
+
+```yaml
+services:
+  api:
+    build: { context: ./apps/api }
+    ports: [3000]
+    x-eve:
+      ingress: { public: false }
+      security:
+        run_as_user: 1000   # USER node in the Dockerfile
+        run_as_group: 1000
+  web:
+    image: nginx:1.27-alpine
+    ports: [80]
+    x-eve:
+      ingress: { public: true, port: 80 }
+      security:
+        run_as_root: true
+        capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
+```
+
+### Egress Host Allow Lists (`x-eve.egress.hosts`)
+
+The internet hosts a project's pods may reach when its rule
+`egress.allow_hosts` is `strict`. The project list covers every pod of the
+project's environments and its job runners; a service list adds hosts for that
+service's pods only.
+
+```yaml
+x-eve:
+  egress:
+    hosts:
+      - api.example.com                  # port 443
+      - "*.cdn.example.com"              # exactly one label under cdn.example.com
+      - { name: smtp.example.com, port: 587 }
+      - { pattern: "*.hooks.example.com", port: 8443 }
+
+services:
+  web:
+    x-eve:
+      egress:
+        hosts: [payments.example.com]
+```
+
+- An entry is a host name, a `*.` pattern (`*` is exactly one label), or the object form with `name` or `pattern` and an optional TCP `port` (default 443). At most 50 entries per list.
+- Refused at sync: schemes, paths, ports inside the string, a bare `*`, `*` outside the first label, patterns over a top-level domain, IP addresses, single-label and cluster names (in-cluster peers need no entry), wildcard DNS services (`nip.io`, `sslip.io`, `xip.io`, `localtest.me`), and names that resolve to a non-public address.
+- Runners also reach the model APIs of the harnesses the project can run and the repository's git host without an entry; apps do not.
+- Runner lists come from the last explicit `eve project sync` (a deploy never marks its manifest as synced): run `eve project sync` after changing hosts. Env pods use the lists of the release the env runs: redeploy.
+- Under `legacy` and `audit` nothing is blocked. A `strict` project needs the instance's `EVE_EGRESS_FQDN_PROVIDER`; see `references/security-profiles.md`.
 
 ### Service Token Permissions
 
@@ -745,6 +847,12 @@ eve app-links list --project <project>
 eve app-links plan --project <consumer> --file .eve/manifest.yaml
 eve app-links explain --consumer <consumer> --alias observation
 ```
+
+Under the producer's `strict` profile (rule `network.ingress_isolation`) a
+producer service admits in-cluster connections from another project only
+through an app link with a live API grant for that env, on the link's port, and
+only to the granted service. Route every in-cluster cross-project call through
+an app link.
 
 ### Toolchain Declarations
 
@@ -951,7 +1059,6 @@ environments:
     pipeline: deploy
     pipeline_inputs:
       smoke_test: true
-    approval: required
     overrides:
       services:
         api:
@@ -971,7 +1078,7 @@ environments:
 | `kind` | string | `standard` (default) or `preview` (PR envs) |
 | `pipeline` | string | Pipeline name to trigger on deploy |
 | `pipeline_inputs` | object | Inputs passed to pipeline (CLI `--inputs` wins on conflict) |
-| `approval` | string | `required` to gate deploys |
+| `approval` | string | **Not enforced by Eve**: deploys never wait for a person. Remove it. Under `strict` (rule `manifest.approval_unenforced`) sync refuses (400) any value other than `none` (any case) or blank; otherwise it warns. |
 | `overrides` | object | Compose-style service overrides |
 | `workers` | array | Worker pool configuration |
 | `labels` | object | Metadata (PR info for preview envs) |
@@ -982,7 +1089,7 @@ When `pipeline` is configured for an environment, `eve env deploy <env> --ref <s
 
 - Consistent build/test/deploy workflows across environments
 - Promotion patterns where staging/production reuse releases from test
-- Environment-specific pipeline inputs and approval gates
+- Environment-specific pipeline inputs
 
 To bypass the pipeline and perform a direct deployment, use `--direct`:
 
@@ -992,7 +1099,7 @@ eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567 --direct
 
 ### Promotion Example
 
-Define environments that share a pipeline but vary in inputs and approval gates:
+Define environments that share a pipeline but vary in inputs:
 
 ```yaml
 environments:
@@ -1004,7 +1111,6 @@ environments:
       smoke_test: true
   production:
     pipeline: deploy
-    approval: required
 ```
 
 Deploy flow:
@@ -1017,7 +1123,7 @@ eve env deploy test --ref 0123456789abcdef0123456789abcdef01234567
 eve release resolve v1.2.3  # Get release_id from test
 eve env deploy staging --ref 0123456789abcdef0123456789abcdef01234567 --inputs '{"release_id":"rel_xxx"}'
 
-# Promote to production (approval required)
+# Promote to production (same release)
 eve env deploy production --ref 0123456789abcdef0123456789abcdef01234567 --inputs '{"release_id":"rel_xxx"}'
 ```
 
@@ -1173,6 +1279,11 @@ persisted on each executable step job, not on the root workflow container job.
 Secret placeholders are resolved only inside worker or agent-runtime before the
 harness process starts.
 
+Reserved names, matched in any case:
+- On every profile: `EVE_*`, `PATH`, `HOME`, `NODE_OPTIONS` and model provider credentials (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `CODEX_AUTH_JSON` and the rest) cannot be overridden. Model routing names (any `*_BASE_URL`, `OPENAI_API_BASE`, `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, `NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE` and similar) take only a single `${secret.KEY}` that resolves from the project or org.
+- Under the project's `strict` profile (rule `harness.reserved_env`): also `LD_PRELOAD`, `LD_LIBRARY_PATH`, `DYLD_*`, `BASH_ENV`, `ENV`, `PYTHONPATH`, `PYTHONSTARTUP`, and `SSL_CERT_DIR`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` unless set to a single `${secret.KEY}`.
+- Job create, chat hints, workflow invoke and manifest sync refuse them. Stored definitions still run: the run strips the reserved names and records them.
+
 Workflow and step `scope` blocks narrow the job token and org filesystem mount.
 Supported axes are `orgfs`, `orgdocs`, `envdb`, and `cloud_fs`:
 
@@ -1283,6 +1394,8 @@ eve project sync --validate-secrets     # Warn on missing secrets
 eve project sync --strict               # Fail on missing secrets
 eve manifest validate                   # Schema + secret validation without syncing
 ```
+
+The `--strict` flag only concerns missing secrets. It is unrelated to the `strict` security profile (see `references/security-profiles.md`).
 
 Use `eve manifest validate` for pre-flight checks against a local manifest or the latest synced version. Required keys follow standard scope resolution rules.
 `${secret.KEY}` references in workflow-level or step-level `env_overrides` are included in the same validation.
@@ -1516,8 +1629,11 @@ Idempotent — re-calling with the same name returns the existing project.
 
 ## Ingress Defaults
 
-If a service exposes ports and the cluster domain is configured, Eve creates ingress by default.
-Set `x-eve.ingress.public: false` to disable.
+A service is public only with `x-eve.ingress.public: true` (and a configured cluster domain).
+A service with ports and no `x-eve.ingress` block is public under the `legacy` and `audit`
+profiles but private under `strict`, so a routed service that relies on that default becomes
+unreachable from outside when the project goes `strict`. Declare `public: true` or
+`public: false` on every service with ports.
 
 URL pattern: `{service}.{orgSlug}-{projectSlug}-{env}.{domain}`
 
@@ -1569,6 +1685,8 @@ services:
     image: ghcr.io/acme/device-edge:latest
     ports: [33400, 33500]
     x-eve:
+      ingress:
+        public: false        # no HTTP ingress for a raw TCP service
       tcp_ingress:
         hostname: trackers
         allow_cidrs:
@@ -1581,6 +1699,7 @@ services:
 ```
 
 Rules:
+- Public TCP listeners are not admitted under the project's `strict` profile (rule `network.ingress_isolation`): they reach the pods through a load balancer, not the ingress controller. Keep such a service in a project on `audit`.
 - `listeners` is required and supports 1-20 entries.
 - Listener names must be lowercase alphanumeric with hyphens.
 - Each listener `port` must also appear in top-level service `ports`.

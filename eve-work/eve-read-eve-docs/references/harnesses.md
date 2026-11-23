@@ -531,6 +531,40 @@ backwards compatibility, resolution falls back to the manifest if agent config i
 
 ---
 
+## Harnesses Under the Strict Profile
+
+Rules under the project's `strict` security profile (see `references/security-profiles.md`):
+
+| Rule | Under `strict` |
+|---|---|
+| `harness.no_preference` | An agent job with no harness named, no `x-eve.defaults.harness_preference` and no instance preference fails at dispatch ("no harness configured"). |
+| `harness.missing_credential` | A harness credential counts only from project, org, system or job-actor secrets, never from the worker's own environment. Preferences skip a harness without one; a named harness without one fails at dispatch. |
+| `harness.missing_profile` | A harness profile that is not declared, or cannot be read, fails manifest sync, agents sync and dispatch. |
+| `harness.missing_agent` | A workflow step naming an agent that does not exist fails agents sync and workflow invoke. |
+| `harness.reserved_env` | Env overrides may not set code-loading names (`LD_PRELOAD`, `LD_LIBRARY_PATH`, `DYLD_*`, `BASH_ENV`, `ENV`, `PYTHONPATH`, `PYTHONSTARTUP`), nor `SSL_CERT_DIR`, `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE` unless a single `${secret.KEY}`. |
+| `harness.checkout_settings` | Checkout settings that reroute model traffic or hand a credential to a place the checkout names are refused (below). |
+| `isolation.runner_mode` | Agent jobs run in runner pods only, never inline in the agent runtime. |
+
+**Egress for harnesses.** Under host allow lists (`egress.allow_hosts`), runner pods reach the model APIs of the harnesses the project can run: those its harness profiles name (every target, fallbacks included), else those its project, org and instance secrets are credentials for. `claude`/`mclaude`: `api.anthropic.com`; `zai`: `api.z.ai`; `gemini`: `generativelanguage.googleapis.com`; `codex`/`code`: `api.openai.com`, `chatgpt.com`, `auth.openai.com`; `pi`: its providers' hosts, through a profile only. A job naming another harness gets no route to its API: declare a profile for it. A custom base URL, another pi provider, Vertex AI or a Google sign-in for Gemini goes in `x-eve.egress.hosts`.
+
+### Checkout Settings (`harness.checkout_settings`)
+
+A harness reads settings from the job's checkout as well as from Eve. Under `strict`, the run is **refused**, naming the file and setting (never a value), when:
+
+| Harness | Refused |
+|---|---|
+| `claude`, `mclaude`, `zai` | A config directory inside the checkout whose `settings.json` sets a routing name or `apiKeyHelper`; an MCP server (`.mcp.json`, the config directory's `.claude.json`) that names a credential or routing variable; any of these files that cannot be parsed. |
+| `codex` | A `.codex/config.toml`, or `config.toml` in a config home inside the checkout, that sets the top-level `profile`, `model_provider`, a `model_providers` entry, any `*base_url`, or an env override with a routing name; an MCP server handed a credential or routing variable (`env_vars`, `bearer_token_env_var`, `env_http_headers`) or an `auth` other than `oauth`; **any** `.env` in a config home inside the checkout; a config that cannot be parsed. |
+| `gemini` | Routing names in `.gemini/.env`; a `$NAME` or `${NAME}` reference to a credential or routing name anywhere in `.gemini/settings.json`; a settings file that does not parse. |
+| `code`, `pi` | Always (no confirmed mechanism). |
+
+- Routing names: `*_BASE_URL`, `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`, TLS trust such as `NODE_EXTRA_CA_CERTS`, `CLAUDE_CODE_USE_BEDROCK`, `CLAUDE_CODE_USE_VERTEX`, `NODE_OPTIONS`, and the code-loading names.
+- Credentials an MCP server may not be handed: the running harness's own API key or auth names, and Eve's secret-bearing names (`EVE_JOB_TOKEN`, `EVE_APP_LINK_<APP>_TOKEN`, internal keys). Another harness's key and Eve's plain settings (`EVE_API_URL`, `EVE_PROJECT_ID`) are the project's own and are allowed.
+- Kept out without refusing: Claude Code reads a cleaned copy of the project and local settings (`--settings` with `--setting-sources user`); Codex gets `-c model_provider="openai"`; Gemini gets an Eve-owned system settings file excluding the project `.env`'s routing names.
+- Eve never edits a checkout file: remove the refused setting from the repo.
+
+---
+
 ## Harness Auth Status (Introspection)
 
 **API:**

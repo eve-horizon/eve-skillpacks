@@ -12,6 +12,7 @@
 - `references/manifest.md` for `x-eve.auth` schema (allowed_redirect_origins, org_access, domain_signup v2).
 - `references/builds-releases.md` for build-specific failure analysis.
 - `references/database-ops.md` for managed-DB connection and migration details.
+- `references/security-profiles.md` when a refusal names a security rule or the project recently moved to `strict`.
 
 ## Ask If Missing
 - Confirm the exact error message or symptom.
@@ -153,6 +154,25 @@ If `./bin/eh status` shows services stopped, restart with `./bin/eh start <mode>
 | k3d ingress 502 | Service not ready or wrong namespace | `eve system pods` to check; wait for rollout |
 | Can't reach `*.lvh.me` | DNS or k3d not running | `lvh.me` resolves to 127.0.0.1; ensure k3d cluster is up |
 | Webhook delivery fails | Endpoint unreachable or HMAC mismatch | `eve webhooks deliveries <id>` for delivery logs |
+
+## Strict Profile Refusals
+
+Under a project's `strict` security profile these fail by design. Ask a system admin for `eve doctor security --project <id>` to see every finding; full checklist in `references/security-profiles.md`.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Routed service unreachable from outside after the flip | Ports and no `x-eve.ingress` block (`ports.implicit_public`) | `x-eve.ingress.public: true` (+ `port`); redeploy |
+| Deploy refused, naming `x-eve.security.run_as_user` | Image `USER` is a name, root or unset (`isolation.pod_security`) | Numeric `USER uid:gid` in the Dockerfile, or set `run_as_user`/`run_as_group` |
+| Deploy refused, naming `${managed.<db>.roles.<role>.url}` | Long-running service reads the owner URL (`managed_db.owner_url`) | Declare a role; use its URL; keep the owner URL in `role: job` services |
+| Outbound call to an internet host hangs or is refused | Host not declared (`egress.allow_hosts`) | Add it to `x-eve.egress.hosts`; `eve project sync` for runners, redeploy for services |
+| "egress allow lists need a provider (EVE_EGRESS_FQDN_PROVIDER)" | Instance has no egress provider | Platform operator; keep the project on `audit` until set |
+| In-cluster call from another project refused | `network.ingress_isolation` | Use an app link with a grant for that env |
+| Sync 400: "Environment approval gates are not enforced by Eve" | `manifest.approval_unenforced` | Remove `environments.<env>.approval` |
+| Job fails "no harness configured" | `harness.no_preference` | Name a harness/profile or set `x-eve.defaults.harness_preference` |
+| Run fails naming a checkout settings file | `harness.checkout_settings` | Remove the routing or credential setting from that file |
+| Job fails "egress policy not enforced" | Cluster does not enforce NetworkPolicy | Platform operator |
+| 403 on `eve secrets export` | `secrets.value_read` | Values are write-only under `strict` |
+| Job missing a secret | `secrets.unbound_job` | Declare it in agent `access.secrets` or step `secrets:` |
 
 ## Real-Time Debugging (Multi-Terminal)
 

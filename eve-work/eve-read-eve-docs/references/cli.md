@@ -801,9 +801,19 @@ eve system envs [--org <id>] [--project <id>]           # Environment overview
 eve system logs <service> [--tail 50]                   # Service logs
 eve system pods                                         # K8s pod status
 eve system events [--limit 50]                          # Recent platform events
+
+# Security profiles (system_admin)
+eve doctor security [--org <id>] [--project <id>] [--days <n>] [--json]
+                                                     # Profiles, findings, strict checklist (default 14 days, max 90)
+eve system security profile <audit|strict|clear> [--org <id> | --project <id> | --new-projects] [--force]
+                                                     # Set or clear a profile; no flag = the instance
+eve system security reconcile                           # Rewrite network policies and pull secrets to match profiles
+eve system secrets reencrypt [--dry-run]                # Move stored credentials to v2 before an instance strict flip
 ```
 
 Notes:
+- `eve doctor security` lists each org and project with its effective profile, its strict rule-set coverage, findings by rule in the window, and for projects not yet `strict` either `ready for strict` or `not ready:` with the blockers. `--json` adds `legacy_levels` and `strict_checklist`. See `references/security-profiles.md`.
+- `eve system security profile legacy` is deprecated in 0.1.330 (warns) and refused from 0.1.331; use `audit`.
 - `eve system env-health` is the platform-wide sentinel view. It returns the latest health check row per environment, including issue details, degraded tick counters, and any circuit-breaker actions.
 - `eve system env-cost` reads `GET /admin/cost/environments` and returns month-to-date environment allocation snapshots. Default table output shows the top 20 environments; `--all` shows every environment; `--json` emits the raw API payload with `total_usd`, `shared_usd`, `observed_at`, `stale`, and `stale_after_hours`.
 - Environment cost uses precomputed snapshots from the opt-in orchestrator OpenCost collector. The command never queries OpenCost directly. Freshness labels are explicit: `fresh estimate`, `stale estimate`, or `unavailable`.

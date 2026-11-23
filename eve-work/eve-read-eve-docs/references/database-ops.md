@@ -5,9 +5,11 @@
 - You need to run migrations, SQL queries, or schema inspections.
 - You need managed DB status, credential rotation, or scaling.
 - You need to set up RLS policies with group-aware helpers.
+- You need declared roles, schema-owner roles, or connection limits.
 
 ## Load Next
 - `references/manifest.md` for managed DB declaration in `x-eve.role: managed_db`.
+- `references/security-profiles.md` for what the `strict` profile requires of database access.
 - `references/deploy-debug.md` for environment-level diagnostics.
 - `references/secrets-auth.md` for DB credential secrets and interpolation.
 
@@ -30,6 +32,9 @@ services:
         engine: postgres
         engine_version: "16"
         extensions: [postgis, pgvector, pg_trgm]
+        roles:
+          - name: app
+            grants: readwrite
 ```
 
 Provisioning occurs automatically when an environment is deployed. Managed DB services are not rendered into K8s manifests.
@@ -64,12 +69,53 @@ Reference managed DB values in environment blocks:
 
 ```yaml
 environment:
-  DATABASE_URL: ${managed.db.url}
+  DATABASE_URL: ${managed.db.roles.app.url}   # long-running services: a declared role
   DB_HOST: ${managed.db.host}
-  DB_PASSWORD: ${managed.db.password}
 ```
 
-Available fields: `url`, `host`, `port`, `database`, `username`, `password`.
+Available fields: `url`, `host`, `port`, `database`, `username`, `password` (the owner login), `extensions`, and `roles.<name>.url|username|password` for each declared role. Role logins share `host`, `port` and `database` with the owner.
+
+**Owner URL under `strict`.** Under the project's `strict` profile (rule `managed_db.owner_url`, 0.1.328) a long-running service whose environment, command or entrypoint reads `${managed.<db>.url}` or `${managed.<db>.password}` is refused at deploy, naming the declared-role form `${managed.<db>.roles.<role>.url}`. Job services (`x-eve.role: job`, migrations) still receive the owner credential, and the non-secret parts (`host`, `port`, `database`, `username`) are unaffected. Under `audit`, each such service is recorded at each deploy.
+
+### Declared Roles
+
+`x-eve.managed.roles` declares least-privilege logins (named `<owner user>-<name>`, hash-truncated to 63 characters):
+
+| `grants` | What the role gets |
+|---|---|
+| `readwrite` | `SELECT, INSERT, UPDATE, DELETE` on tables and `SELECT, USAGE` on sequences in `public`, including objects the owner creates later. Cannot create objects. |
+| `readonly` | `SELECT` on the same. Cannot create objects. |
+| `{ schema: <name>, owner: true }` | Owns that one schema (from 0.1.330): DDL there, no grants of its own in `public`. |
+
+- Run migrations for `public` as a `role: job` service with the owner URL. Give a component that migrates its own schema (such as an auth server) a schema-owner role instead of the owner credential:
+
+```yaml
+roles:
+  - name: app
+    grants: readwrite
+  - name: auth
+    grants: { schema: auth, owner: true }
+```
+
+```yaml
+environment:
+  AUTH_DATABASE_URL: postgres://${managed.db.roles.auth.username}:${managed.db.roles.auth.password}@${managed.db.host}:${managed.db.port}/${managed.db.database}?search_path=auth
+```
+
+- Schema-owner rules: the schema is a plain lower-case identifier (`[a-z_][a-z0-9_]*`), never `public`, `pg_*` or `information_schema`, and has one owner role. A new schema is created owned by the role; one the owner already owns is handed over with its objects at the next deploy (refused with `schema_owner_conflict` when it holds objects another role owns or kinds a hand-over does not move). The other roles get nothing in it; the tenant owner can read it, so snapshots include it. Removing the role hands the schema back to the owner before the login is dropped.
+- At most 8 roles per database (manifest sync refuses more). Roles added later are created on the next deploy; removed roles are revoked and dropped. `eve db rotate-credentials` rotates every role with the owner; `eve db destroy` drops them; `eve db reset` resets `public` only.
+- `eve db status --env <name>` lists declared and provisioned roles (names and logins, never passwords).
+- Roles need the local managed DB provider; others reject them with `provider_unsupported`.
+
+### Connection Limits
+
+On every profile (from 0.1.328):
+- Each managed database accepts only its own logins (`CONNECT` is revoked from `PUBLIC`).
+- Each login (owner and roles) without a limit gets its class's limit: 25 (`db.p1`), 100 (`db.p2`), 200 (`db.p3`). A login limit an operator set is never changed.
+- The database as a whole gets its class maximum plus a platform reserve of 5 for Eve's own connections (30, 105, 205). It is set only when the database has no limit, so one an operator set, lower or higher, stays (the reserve is then theirs to allow for).
+- Limits apply at provisioning, when a tenant change finishes, and once to existing tenants when the orchestrator starts.
+
+Size each service's connection pool within its login's limit, and scale the class (`eve db scale`) when a login or the database runs near its limit.
 
 ## TLS Trust (Managed DB)
 
@@ -166,15 +212,22 @@ services:
     ports: [3000]
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.roles.app.url}   # declared role for the long-running API
+    x-eve:
+      ingress:
+        public: true
+        port: 3000
 
   migrate:
     image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
-      DATABASE_URL: ${managed.db.url}
+      DATABASE_URL: ${managed.db.url}             # owner URL: job services only
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
+      security:                                   # the migrate image sets no USER; strict needs a numeric one
+        run_as_user: 1000
+        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -186,6 +239,9 @@ services:
         class: db.p1
         engine: postgres
         engine_version: "16"
+        roles:
+          - name: app
+            grants: readwrite
 
 environments:
   sandbox:

@@ -4,6 +4,7 @@
 - You need to troubleshoot deploy, ingress, namespace, or runtime worker issues.
 - You need environment-specific diagnostics or service status during incident response.
 - You need K8s architecture behavior for local or staging deployments.
+- A deploy under the `strict` security profile is refused (see Strict Profile Deploys).
 
 ## Deploy Error Classes (DeployFailure kinds)
 
@@ -146,6 +147,13 @@ The worker runs a periodic reaper that cleans up orphaned runner pods and PVCs a
 3. Restart deployments that consume `eve-app` (`eve-api`, `eve-orchestrator`, `eve-worker`) so updated env values are loaded.
 4. API reads system secrets as baseline for all environments.
 
+### Service Secrets
+
+On every security profile (from 0.1.327) credentials never sit in a Deployment or Job spec. At each deploy the deployer writes one Opaque Secret per service, `<env>-<service>-eve-secrets` (labelled `eve.service_secrets=true`), holding every `environment` value that references `${secret.KEY}` or `${managed.*}` (after interpolation), `EVE_SERVICE_TOKEN` and app-link `*_TOKEN` values. Containers read them through `secretKeyRef` under the same env var names, so apps see no change; plain values stay inline.
+- The pod template carries `eve.secrets-sha256`, so a changed secret value rolls the pods at the next deploy.
+- Service jobs (`x-eve.role: job`) read from a Secret made for the run (`<env>-<job>-eve-secrets`, labelled `eve.job_secrets=true`), removed when the run ends.
+- After a deploy, Secrets of services no longer rendered are pruned once their Deployment is gone.
+
 ### Ingress Routing
 
 ```
@@ -155,6 +163,8 @@ Namespace: eve-{orgSlug}-{projectSlug}-{env}
 ```
 
 Domain resolution: 1) manifest `x-eve.ingress.domain`, 2) `EVE_DEFAULT_DOMAIN`, 3) no ingress if neither set. Local dev uses `lvh.me` (resolves to 127.0.0.1). Production: set `EVE_DEFAULT_DOMAIN=apps.yourdomain.com`.
+
+A service gets an Ingress only when it is public. Under the `strict` profile a service with ports and no `x-eve.ingress` block is private, so declare `x-eve.ingress.public: true` on every routed service (see `references/manifest.md`).
 
 ### HTTP Ingress Timeouts and Body Size
 
@@ -363,7 +373,8 @@ services:
 ```
 
 See `references/manifest.md` for schema. EKS only — k3d treats the field as a
-no-op and logs a warning.
+no-op and logs a warning. Refused under the project's `strict` profile (rule
+`isolation.pod_security`).
 
 ### How It Works
 
@@ -435,6 +446,34 @@ Read the output:
 | Render error: `port(s) ... in the Kubernetes NodePort range (30000-32767)` | EKS node SG opens NodePort range from `0.0.0.0/0` for NLB traffic. Pick a service port outside that range. |
 | Egress IP equals the egress node's EXTERNAL-IP, but STUN ports differ across servers | `egress-snat-bypass` DaemonSet not running on the egress node. Check `kubectl -n eve get pods -l app.kubernetes.io/name=egress-snat-bypass` and inspect `iptables -t nat -L AWS-SNAT-CHAIN-0` on the node — there should be an early `RETURN` rule for the node's primary IP, before the SNAT. |
 | Vendor relay still times out but STUN passes | NAT semantics are correct; the remaining issue is app/vendor-specific (firewall on vendor side, expired credentials, decommissioned relay host, app-level retry). Reopen the protocol diagnosis at app level. |
+
+## Strict Profile Deploys
+
+Under the project's `strict` security profile the deployer checks more before it applies anything. Under `audit` the same checks only record findings, so `eve doctor security --project <id>` (system admin) shows what a flip would refuse. Full checklist: `references/security-profiles.md`.
+
+### Pod Security
+
+- Rule `isolation.pod_security` (0.1.327): tenant pods and service job pods run with the restricted Pod Security context and a numeric user from `x-eve.security.run_as_user`, else the image's numeric `USER` (read with `crane config` using the env's pull credentials). A service with neither is refused before anything is applied, naming the fields. The namespace gets Pod Security `warn` and `audit` labels at `restricted`, or `baseline` after an opt-out (`run_as_root`, or a capability beyond `NET_BIND_SERVICE`).
+- Rule `isolation.pod_security_admission` (0.1.328): a strict deploy sets `warn` and `audit` before the workloads, and Pod Security `enforce` at the namespace's level only after the rollout succeeds, pinned to `EVE_POD_SECURITY_VERSION` (default `v1.30`). The level is the least of every service's, service jobs included. A failure to set the labels before the workloads stops the deploy.
+- A service job (migration) that opts out can run before the deploy: an `enforce` Eve set that is stricter than the job's level is lowered first.
+
+### Network Policies
+
+- `egress.default_deny` (0.1.327): the deployer writes the env namespace's egress policies after rendering and before any workload is applied; under `strict` a failure to write them fails the deploy.
+- `egress.allow_hosts` (0.1.328): with `EVE_EGRESS_FQDN_PROVIDER=gke` the worker writes one FQDN policy per declared host; with no provider a strict project's deploys, service jobs and job dispatch fail with "egress allow lists need a provider (EVE_EGRESS_FQDN_PROVIDER)". A failed FQDN write fails the deploy and leaves the project's pods without internet until the hosts are written.
+- `network.ingress_isolation` (0.1.328): each deploy writes `eve-ingress` (Eve API, the project's own namespaces and runners) and one `eve-ingress-svc-<service>` per service the ingress controller routes to or app-link consumers call.
+- Setting a profile reconciles a project's policies at once; `eve system security reconcile` rewrites every environment's policies without restarting anything.
+
+### Deploy-Time Refusals
+
+| Refusal | Rule | Fix |
+|---|---|---|
+| Deploy or service job refused, naming `x-eve.security.run_as_user` / `run_as_group` | `isolation.pod_security` | Numeric `USER` in the Dockerfile, or set the fields; `run_as_root: true` as an opt-out |
+| Deploy refused for `x-eve.networking.egress: stable` | `isolation.pod_security` | Remove the opt-in |
+| Deploy refused, naming `${managed.<db>.roles.<role>.url}` | `managed_db.owner_url` | Declare a role and use its URL in long-running services |
+| "egress allow lists need a provider (EVE_EGRESS_FQDN_PROVIDER)" | `egress.allow_hosts` | Platform operator configures the provider; keep the project on `audit` until then |
+| Deploy fails writing egress or FQDN policies | `egress.default_deny`, `egress.allow_hosts` | Retry; then ask the platform operator (CRD missing, feature off, API refusal) |
+| Deploy succeeds but the routed service has no host | `ports.implicit_public` | Add `x-eve.ingress.public: true` and redeploy |
 
 ## Continuous Environment Monitoring (Sentinel)
 

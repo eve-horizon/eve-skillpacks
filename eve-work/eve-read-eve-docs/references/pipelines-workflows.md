@@ -156,6 +156,8 @@ eve pipeline cancel <run-id> [--reason <text>]
 eve pipeline logs <pipeline> <run-id> [--step <name>]
 ```
 
+Approving a run records the caller as `approved_by` and in the audit log. Under the project's `strict` security profile (rule `pipelines.approve_token`) only a person's own token may approve; job, service, service-principal and app-link tokens get 403. Environment `approval` in the manifest is not a deploy gate: Eve does not enforce it, and `strict` sync refuses it (see `references/manifest.md`). Under `strict`, `script:` steps and `action: { type: run }` run in runner pods and a legacy pipeline-runner `run` step gets 400 ("use a `script:` step"); see `references/jobs.md`.
+
 Notes:
 - `--ref` must be a 40-character SHA, or a ref resolved against `--repo-dir`/cwd.
 

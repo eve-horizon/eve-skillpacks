@@ -13,6 +13,8 @@ services:
       context: ./apps/api
     ports: [3000]
     x-eve:
+      ingress:
+        public: false         # CLIs call the in-cluster URL; set true if browsers call it too
       api_spec:
         type: openapi
       cli:

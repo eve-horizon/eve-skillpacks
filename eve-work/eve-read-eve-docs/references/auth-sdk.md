@@ -199,6 +199,26 @@ interface EveUser {
 }
 ```
 
+### App Audience Tokens (Strict Instance Profile)
+
+Under the `strict` instance security profile, the SSO's `/session` serves an app only from one of its own project's `https` hosts (env default hosts, ingress aliases, verified custom domains, `x-eve.auth.allowed_redirect_origins`), only for a person the app's access policy admits, and returns an **app audience token** instead of the platform token:
+
+- `aud` is `eve-app:<project_id>:<env>`, or `eve-app:<project_id>` when the origin names no environment;
+- no `orgs` claim: the SDK middleware (`eveUserAuth()`, `eveAuth()`) reads the person's orgs from Eve `/auth/app-access`, and `eveAuthMe()` asks `/auth/me`, sending `X-Eve-Audience` each time;
+- one-hour lifetime: on a 401, ask `/session` again.
+
+Eve's API accepts such a token only on `/auth/me`, `/auth/app-access`, `/auth/app-invites` and `/auth/token/verify`, with `X-Eve-Audience` equal to the token's `aud`, and only for the app's own project. An app calling those routes without the SDK sends the header itself:
+
+```typescript
+import { eveAudienceHeaders } from '@eve-horizon/auth';
+
+await fetch(`${process.env.EVE_API_URL}/auth/me`, {
+  headers: { Authorization: `Bearer ${token}`, ...eveAudienceHeaders(token) },
+});
+```
+
+Apps on an older SDK find no identity in an app audience token: upgrade before the instance moves to `strict`. App-link tokens (`aud: project:<producer>`) are not affected. Under `audit` apps get the platform token as before.
+
 ## Frontend: `@eve-horizon/auth-react`
 
 ### Setup (React)

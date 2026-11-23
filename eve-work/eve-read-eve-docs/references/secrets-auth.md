@@ -9,6 +9,7 @@
 - `references/cli.md` for secret and auth command workflows.
 - `references/manifest.md` for manifest `x-eve.requires` and interpolation.
 - `references/skills-system.md` when auth affects installed capabilities.
+- `references/security-profiles.md` when the project runs under the `strict` security profile.
 
 ## Ask If Missing
 - Confirm scope needed (project, org, user, or system) before setting values.
@@ -19,7 +20,7 @@
 
 ### Scope Hierarchy
 
-Secrets resolve in priority order: **project > user > org > system**. Values are encrypted at rest and never returned in plaintext. The `show` endpoint returns a masked value (first/last characters only).
+Secrets resolve in priority order: **project > user > org > system**. Values are encrypted at rest and never returned in plaintext. The `show` endpoint returns a fixed mask that shows no character of the value, the value's `length`, and a `fingerprint` (equal fingerprints at the same scope and key mean equal values).
 
 API paths: `/system/secrets`, `/users/:id/secrets`, `/orgs/:id/secrets`, `/projects/:id/secrets`.
 
@@ -34,7 +35,7 @@ eve secrets ensure --project proj_xxx --keys GITHUB_WEBHOOK_SECRET
 eve secrets export --project proj_xxx --keys GITHUB_WEBHOOK_SECRET
 ```
 
-`ensure` auto-generates allowlisted secrets (e.g., `GITHUB_WEBHOOK_SECRET`). `export` returns the plaintext value for external configuration -- treat it as sensitive.
+`ensure` auto-generates allowlisted secrets (e.g., `GITHUB_WEBHOOK_SECRET`) and returns each value it generates once, in its own response. `export` returns the plaintext value for external configuration -- treat it as sensitive. Under the project's `strict` profile `export` gets 403 (see Secrets Under the Strict Profile).
 
 ### Import Secrets from File
 
@@ -64,7 +65,23 @@ eve project sync --strict
 eve secrets validate --project proj_xxx
 ```
 
-Validation reports missing secrets with scope-aware remediation hints.
+Validation reports missing secrets with scope-aware remediation hints. The `--strict` flag means "fail on missing secrets"; it is unrelated to the `strict` security profile.
+
+### Secrets Under the Strict Profile
+
+Under the project's `strict` security profile (see `references/security-profiles.md`):
+
+| Rule | Under `strict` | What to do |
+|---|---|---|
+| `secrets.value_read` | Values are write-only through the API: `eve secrets export` gets 403. `eve github setup` returns the webhook secret only when it creates it (or with `--regenerate`). | Capture a generated value from the `ensure` response, or rotate and set it where it is needed. |
+| `secrets.system_scope` | A system secret reaches the project's deploys, jobs and harness checks only when the instance shares it by name. | System admin: `eve system settings set secrets.system_shared_keys "KEY_A,KEY_B"`; or move the secret to org or project scope. |
+| `secrets.job_org_write` | A job or service token may update only a project-scope copy of a credential, never the org's. | Keep a project-scope copy of a credential the project's jobs refresh, for example `CODEX_AUTH_JSON_B64`. |
+| `secrets.unbound_job` | A job whose agent (`access.secrets`) and workflow step (`secrets:`) declare no allowlist gets only its harness provider keys and the keys its env overrides reference. | Declare the secrets each job needs. |
+| `secrets.use` | Starting work bound to a secret beyond its harness credential needs `secrets:use`. | Grant `secrets:use` (see Operator Rights). |
+| `webhooks.global_secret` | A GitHub webhook for a project without its own `GITHUB_WEBHOOK_SECRET` gets 401. | `eve github setup` for the project. |
+| `harness.user_secret_routing` | User-scope secrets named like routing settings (`*_BASE_URL`, proxies, TLS trust) or code-loading names (`NODE_OPTIONS`, `LD_PRELOAD` and similar) are left out of a job's resolve. | Set such values at project or org scope. |
+
+On every profile (from 0.1.327), `${secret.*}` and `${managed.*}` environment values, `EVE_SERVICE_TOKEN` and app-link tokens reach a deployed service through its own Kubernetes Secret (`<env>-<service>-eve-secrets`) and `secretKeyRef`, never inline in the pod spec. The container sees the same env var names and values.
 
 ### Interpolation
 
@@ -506,6 +523,26 @@ eve auth whoami               # Current user + effective permissions
 API: `GET /auth/permissions` (catalog), `GET /auth/me` (current user).
 
 Permission resolution: `effective = expand(base_role) UNION all(bound_custom_role_permissions)`.
+
+### Operator Rights
+
+| Right | Lets the holder | Comes from |
+|---|---|---|
+| `secrets:use` | Start work (job create, workflow invoke, chat) that receives a secret beyond its harness credential | Admin and owner roles; bindings and custom roles may grant it |
+| `envdb:export` | Download a managed database snapshot | Admin and owner roles; bindings and custom roles may grant it |
+
+The project's security profile decides where they come from (rule `access.operator_rights`):
+- **`legacy` / `audit`:** `secrets:read` stands for `secrets:use` and `envdb:read` for `envdb:export`; the member role and default agent permissions carry `jobs:harness_override`. `audit` records each such use.
+- **`strict`:** only the rights themselves count, and `jobs:harness_override` leaves the member role and default job permissions. A job token keeps it only when its agent's `access.permissions` or the job's own token permissions declare it.
+
+Before a project goes `strict`, grant the rights to the people and agents that need them:
+
+```bash
+eve access roles create operator --org <org_id> --scope project --permissions secrets:use,envdb:export,jobs:harness_override
+eve access bind --org <org_id> --project <project_id> --user <user_id> --role operator
+```
+
+Also under `strict`: an org `member` gets nothing on a project from the org role alone (rule `access.implicit_project`; add a project membership or binding), and job approve/reject and `eve pipeline approve` need a person's own token (rules `jobs.approve_token`, `pipelines.approve_token`).
 
 ### Identity Management
 

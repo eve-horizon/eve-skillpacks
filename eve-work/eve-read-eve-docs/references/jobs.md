@@ -236,6 +236,33 @@ Timeout behavior:
 - If the worker never publishes a terminal runner event, the orchestrator marks
   the attempt failed with `poll_timeout`.
 
+### Where Job Code Runs Under `strict`
+
+Under the project's `strict` security profile (rule `isolation.runner_mode`,
+0.1.327) job code runs only in credential-free runner pods:
+
+| Work | `legacy` / `audit` | `strict` |
+|---|---|---|
+| Agent job | Agent runtime inline when configured, else a runner pod | A runner pod |
+| `script:` step | Worker process, or a runner pod | A runner pod |
+| `action: { type: run }` | Worker process | A runner pod (timeout code `action_run_timeout`) |
+| Legacy pipeline-runner `run` step | Worker process | Refused: 400, "use a `script:` step" |
+| Outside Kubernetes | Inline | Fails: "strict needs runner pods" |
+
+- A runner pod mounts no org filesystem.
+- Before it uses its job token, the runner checks that the metadata server and
+  the Kubernetes API are out of reach; if either answers, the job fails
+  ("egress policy not enforced", `error_code: egress_not_enforced`).
+- A job whose agent (`access.secrets`) and step (`secrets:`) declare no
+  allowlist receives only its harness provider keys and the keys its env
+  overrides reference (`secrets.unbound_job`).
+- Runner pods reach the internet hosts in the project-level
+  `x-eve.egress.hosts` of the last explicitly synced manifest, plus harness
+  model APIs and the repo's git host (see `references/security-profiles.md`).
+- Job approve and reject need a person's own token (`jobs.approve_token`), and
+  the jobs of a workflow or pipeline run change only through the run's actor,
+  its own step tokens or a project admin (`jobs.run_step_change`).
+
 ### Claim/Release (Agent Use)
 
 ```bash
