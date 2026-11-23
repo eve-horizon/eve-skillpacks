@@ -1,0 +1,44 @@
+name: Public repository checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 17 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out skillpacks
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          path: skillpacks
+          persist-credentials: false
+
+      - name: Check out Eve Horizon source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: eve-horizon/eve-horizon
+          fetch-depth: 0
+          path: horizon
+          persist-credentials: false
+
+      - name: Parse repository YAML
+        working-directory: skillpacks
+        run: ruby -e 'require "yaml"; Dir.glob("**/*.{yaml,yml}", File::FNM_DOTMATCH).sort.each { |path| YAML.parse_file(path) }'
+
+      - name: Check public repository invariants
+        working-directory: skillpacks
+        run: python3 scripts/check-repository.py
+
+      - name: Check source consistency without mutation
+        run: >-
+          python3 skillpacks/scripts/check-source-sync.py
+          --repo "$GITHUB_WORKSPACE/skillpacks"
+          --source "$GITHUB_WORKSPACE/horizon"

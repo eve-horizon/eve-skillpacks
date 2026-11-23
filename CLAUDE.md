@@ -1,6 +1,7 @@
 # Eve Skillpacks
 
-Public skill packs for Eve Horizon. Keep synced with ../eve-horizon.
+Public skill packs for Eve Horizon. Keep synced with the source repository at
+`.sync-state.json#eve_horizon_path`.
 
 ## Sync Workflow
 
@@ -27,7 +28,7 @@ Run `/sync-horizon` to pull latest platform changes into skillpacks. This:
 
 ## Private Skills
 
-`private-skills/` contains skills that make development in this repo more efficient. Install them via `eve skill install` with a `skills.txt` containing `../private-skill`, then access them as normal skills.
+`private-skills/` contains skills that make development in this repo more efficient. Install them via `eve skills install` with a `skills.txt` containing `./private-skills`, then access them as normal skills.
 
 ## Agent-Native Philosophy
 

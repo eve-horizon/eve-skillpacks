@@ -35,6 +35,8 @@ services:
         roles:
           - name: app
             grants: readwrite
+          - name: reports
+            grants: readonly
 ```
 
 Provisioning occurs automatically when an environment is deployed. Managed DB services are not rendered into K8s manifests.
@@ -116,6 +118,8 @@ On every profile (from 0.1.328):
 - Limits apply at provisioning, when a tenant change finishes, and once to existing tenants when the orchestrator starts.
 
 Size each service's connection pool within its login's limit, and scale the class (`eve db scale`) when a login or the database runs near its limit.
+
+Role names are unique per database and match `^[a-z][a-z0-9_]{0,15}$`. `url` is the owner URL verbatim; `port` defaults to `5432`. Both grant levels get database `CONNECT` and schema `USAGE`, and neither includes `CREATE` on `public`.
 
 ## TLS Trust (Managed DB)
 
@@ -283,7 +287,7 @@ services:
       retries: 5
 
   migrate:
-    image: ghcr.io/eve-horizon/eve-migrate:latest
+    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:

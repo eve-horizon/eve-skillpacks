@@ -458,6 +458,10 @@ Supported Compose fields: `image`, `build`, `environment`, `ports`, `depends_on`
 Notes:
 - `x-eve.role: job` makes a service runnable as a one-off job (migrations, seeds).
 - `x-eve.role: managed_db` marks a service as a platform-provisioned database.
+- `x-eve.managed.roles` declares local-provider tenant logins with unique
+  `name` values matching `^[a-z][a-z0-9_]{0,15}$` and `grants: readonly` or
+  `readwrite`. Use `${managed.<service>.roles.<name>.url}` for app access and
+  the owner URL for migrations. Cloud providers reject role declarations.
 - `spec_url` can be relative (resolved against service URL) or absolute.
 - `spec_path` is supported only for local `file://` repos.
 - **Declare ingress on every service with ports.** A service is public only with `x-eve.ingress.public: true`; an `x-eve.ingress` block without it is private. A service with ports and **no** `x-eve.ingress` block is public under the `legacy` and `audit` profiles (`audit` records a `ports.implicit_public` finding) and private under `strict`: no Ingress, default host, alias or domain, and the ingress controller cannot reach it. Write `public: true` on every routed service and `public: false` on every internal one so the profile does not matter. When a service stops being public, its next deploy removes the Ingress Eve made for it.
@@ -884,7 +888,7 @@ agents:
     toolchains: [python, rust, java]  # multi-toolchain
 ```
 
-Available toolchains: `python`, `media`, `rust`, `java`, `kotlin`.
+Available toolchains: `python`, `media`, `rust`, `java`, `kotlin`, `browser`.
 
 Workflow steps can override agent toolchain defaults:
 
@@ -897,20 +901,47 @@ workflows:
         toolchains: [media, python]  # override agent default
 ```
 
-Toolchain precedence: workflow step `toolchains` > agent `toolchains` > none.
+Toolchain precedence: workflow step `toolchains` > agent `toolchains` >
+workflow default > none.
 
-Each toolchain is a small container image (~50-300MB) extracted into
+For headless HTML/SVG checks on a supported linux/amd64 runtime, declare
+`toolchains: [python, browser]` on script or agent workflow/pipeline steps and
+run `/opt/eve/toolchains/browser/bin/eve-browser-python script.py`. The browser
+payload bundles Python Playwright 1.63.0 and its matching headless Chromium.
+Render HTML/SVG, measure DOM/SVG geometry, and attach a screenshot and receipt
+to the job. Do not set `PLAYWRIGHT_BROWSERS_PATH`, `LD_LIBRARY_PATH`, or
+`FONTCONFIG_FILE` in browser step `env_overrides`; these are rejected as setup
+failures.
+
+```yaml
+workflows:
+  browser-check:
+    steps:
+      - name: render
+        toolchains: [python, browser]
+        script:
+          run: /opt/eve/toolchains/browser/bin/eve-browser-python verify_page.py
+```
+
+Each toolchain is a separate container image extracted into
 `/opt/eve/toolchains/{name}/`. Inline runtimes use `crane` and the shared
 toolchain cache, then prepend toolchain `bin` dirs to `PATH` and inject
 per-toolchain `env.sh` variables (for example `JAVA_HOME`, `RUSTUP_HOME`).
-Runner-pod mode uses init containers and reports the same
-`runtime_meta.toolchains` shape.
+Worker and agent runner builders add init containers in runner-pod mode.
+Inline mode resolves the configured prefix and version tag to a source image
+digest: agent jobs record `runtime_meta.browser.source_image_digest`, while
+script jobs record `runtime_meta.toolchains.browser_source_image_digest`.
+Runner mode records actual pulled init-container
+`runtime_meta.toolchains.image_ids`. A source digest identifies the image that
+populated a writable cache, not integrity of the extracted files.
 
 Agents without `toolchains` run on the base runtime. If provisioning fails, the
 attempt fails with `result_json.error_code = "toolchain_unavailable"`; inspect
 `eve job diagnose <job-id>` for `runtime_meta.toolchains` and provisioning logs.
-The `full` image (~2.6GB, all toolchains baked in) remains available via
-`EVE_WORKER_VARIANT=full` for worker deployments that still need it.
+The public runner is the canonical `worker:<platform-version>` image.
+Toolchains are separate images; there is no supported public `full` worker
+variant fallback. Diagnose provisioning with `eve job diagnose <job-id>` and
+verify the configured toolchain prefix/tag.
 
 ### Cloud FS Mounts
 
@@ -1002,6 +1033,12 @@ x-eve:
     storage_class: standard        # optional
     name: my-data                  # optional PVC name
 ```
+
+Services mounting a `ReadWriteOnce` volume (the default access mode) use
+Kubernetes `Recreate` on deploy, including `x-eve.role: database` services.
+Other volume modes retain `RollingUpdate`. Set `x-eve.rollout: rolling` or
+`x-eve.rollout: recreate` to override the default. EKS stable-egress services
+always use `Recreate`, even with an explicit rolling override.
 
 ### Healthcheck
 
@@ -1145,7 +1182,7 @@ pipelines:
 Step types: `action`, `script`, `agent`, or shorthand `run`.
 
 Pipeline `toolchains` can be declared at pipeline root or step level. Valid
-values are `python`, `media`, `rust`, `java`, and `kotlin`. Script, shorthand
+values are `python`, `media`, `rust`, `java`, `kotlin`, and `browser`. Script, shorthand
 `run`, agent, and `action: { type: run }` steps resolve `step.toolchains >
 pipeline.toolchains > []`. Non-run actions cannot declare step-level
 toolchains, and `action.toolchains` is rejected. The resolved value is stored on
@@ -1216,7 +1253,7 @@ workflows:
 | `steps[].agent` | object | Agent ref: `name`, optional `prompt`/`prompt_file`, `harness`, `harness_profile`, `toolchains` |
 | `steps[].script` | object | Worker-executed script step; accepts `run` or `command` plus optional `timeout`/`timeout_seconds` |
 | `steps[].run` | string | Shorthand for `steps[].script.run`; creates a script child job |
-| `steps[].toolchains` | string[] | Step-level toolchains (`python`, `media`, `rust`, `java`, `kotlin`) |
+| `steps[].toolchains` | string[] | Step-level toolchains (`python`, `media`, `rust`, `java`, `kotlin`, `browser`) |
 | `steps[].harness` | string | Step-level harness override (takes precedence over agent-resolved value) |
 | `steps[].harness_options` | object | Step-level harness options: `model`, `reasoning_effort`, `temperature` (passthrough) |
 | `steps[].harness_profile` | string | Named profile reference; supports `${inputs.<key>}` template expressions |

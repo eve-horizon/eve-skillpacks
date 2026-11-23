@@ -256,4 +256,6 @@ The override flows end-to-end through dispatch and claim, taking precedence over
 - Retry the failed/upstream-failed tail of a previous invocation:
   - `eve workflow retry <root-job-id> --failed`
   - `eve workflow retry <root-job-id> --from <step>`
+  - Script/action retry clones clear stale assignees so the orchestrator can
+    claim them; agent retry clones retain their assignment.
 - Workflow steps accept file references (`resource_refs` entries that point at a path) — they materialize into the step's workspace alongside other refs.

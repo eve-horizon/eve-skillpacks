@@ -304,13 +304,20 @@ The March 18, 2026 Cloud FS update added direct per-mount file operations in the
 | `GET` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/files/:file_id/download` | Stream file contents |
 | `POST` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/upload` | Upload a file to a target path |
 | `POST` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/folders` | Create a folder |
+| `DELETE` | `/orgs/:org_id/cloud-fs/mounts/:mount_id/files/:file_id` | Move a file to recoverable provider trash |
 
 Upload details:
 - Requires `cloud_fs:admin`.
 - Send raw file bytes as the request body.
 - Set `X-Cloud-FS-Path: /folder/file.ext` to choose the destination path.
 - Set `Content-Type` to the file MIME type.
-- Read-only mounts reject uploads and folder creation.
+- Uploading to a destination with a same-name file updates the newest match in place (same file ID, new revision); the response includes `replaced: true`. New uploads return `replaced: false`. Trash is recoverable; this API does not permanently delete files.
+- Read-only mounts reject uploads, folder creation, and trash.
+- For an explicit folder root, caller-supplied file and folder IDs must be that
+  folder or its descendants. The Google Drive `root` alias instead accepts any
+  readable non-shortcut item without an ancestry check; shortcuts are rejected.
+  Metadata, download, browse by `folder_id`, create-folder by `parent_id`, and
+  trash return the same 404 for missing, out-of-root, or shortcut IDs.
 
 ### Events
 

@@ -54,7 +54,7 @@ services:
       retries: 5
 
   migrate:
-    image: ghcr.io/eve-horizon/eve-migrate:latest
+    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:

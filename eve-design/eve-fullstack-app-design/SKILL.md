@@ -78,7 +78,7 @@ services:
 ### Service Design Rules
 
 1. **One concern per service.** Separate HTTP serving from background processing. An API service should not also run scheduled jobs.
-2. **Use managed DB for Postgres.** Declare `x-eve.role: managed_db` and let the platform provision, connect, and inject credentials. No manual connection strings.
+2. **Use managed DB for Postgres.** Declare `x-eve.role: managed_db` and let the platform provision, connect, and inject credentials. On the local provider, declare `x-eve.managed.roles` for app `readwrite` or reporting `readonly` access; keep the owner URL for migrations. Cloud providers reject tenant roles. No manual connection strings.
 3. **Mark external services explicitly.** Use `x-eve.external: true` with `x-eve.connection_url` for services hosted outside Eve (Redis, third-party APIs).
 4. **Use `x-eve.role: job` for one-off tasks.** Migrations, seeds, and data backfills are job services, not persistent processes.
 5. **Expose ingress intentionally, and always explicitly.** Services that need external HTTP access get `x-eve.ingress.public: true`; every other service with ports gets `public: false` and is reached over cluster networking. Never leave a service with ports and no `x-eve.ingress` block: it is public under the `audit` profile and private under `strict`, so its reachability would change with the profile.
@@ -129,316 +129,29 @@ Every deployed service receives `EVE_API_URL`, `EVE_PUBLIC_API_URL`, `EVE_PROJEC
 
 ## Reference Architecture: SPA + API + Managed DB
 
-The most common Eve fullstack pattern. A nginx-fronted SPA proxies API calls to an internal backend, with managed Postgres and eve-migrate for schema management.
+Use a public nginx SPA to proxy `/api/` to an internal Node service, backed by
+managed Postgres and a one-off migration job. This keeps the API off public
+ingress and gives the browser same-origin access.
 
-### Service Layout
-
-```
-services:
-  web:        # nginx SPA (public ingress, proxies /api/ → api service)
-  api:        # NestJS/Express backend (internal, no public ingress)
-  db:         # managed Postgres 16
-  migrate:    # eve-migrate job (runs SQL migrations)
-```
-
-**Why nginx proxy?** The web service's nginx reverse-proxies `/api/` to the internal API service. This eliminates CORS, removes the need for hard-coded API hostnames, and gives the SPA same-origin access to the backend. The API service has no public ingress — it's only reachable inside the cluster.
-
-### Manifest Shape
-
-```yaml
-services:
-  api:
-    build:
-      context: ./apps/api
-      dockerfile: ./apps/api/Dockerfile
-    ports: [3000]
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: ${managed.db.roles.app.url}   # declared role, not the owner URL
-      CORS_ORIGIN: "https://myapp.eve.example.com"
-    x-eve:
-      ingress:
-        public: false                       # internal only, reached via web's /api/ proxy
-
-  web:
-    build:
-      context: ./apps/web
-      dockerfile: ./apps/web/Dockerfile
-    ports: [80]
-    environment:
-      API_SERVICE_HOST: ${ENV_NAME}-api    # k8s service DNS for nginx proxy
-    depends_on:
-      api:
-        condition: service_healthy
-    x-eve:
-      ingress:
-        public: true
-        port: 80
-        alias: myapp                        # https://myapp.{org}-{project}-{env}.eve.example.com
-      security:                             # stock nginx runs as root on port 80; under strict it needs this opt-out
-        run_as_root: true                   # (or a non-root nginx image with a numeric USER on a port >= 1024)
-        capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
-
-  migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
-    environment:
-      DATABASE_URL: ${managed.db.url}       # owner URL: allowed in role: job services
-      MIGRATIONS_DIR: /migrations
-    x-eve:
-      role: job
-      security:                             # the migrate image sets no USER; strict needs a numeric one
-        run_as_user: 1000
-        run_as_group: 1000
-      files:
-        - source: db/migrations
-          target: /migrations
-
-  db:
-    x-eve:
-      role: managed_db
-      managed:
-        class: db.p1
-        engine: postgres
-        engine_version: "16"
-        roles:
-          - name: app
-            grants: readwrite
-```
-
-### The nginx Proxy
-
-The web service Dockerfile builds the SPA with Vite, then serves it via nginx. The nginx config uses `envsubst` to resolve `${API_SERVICE_HOST}` at container startup:
-
-```nginx
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    location /api/ {
-        proxy_pass http://${API_SERVICE_HOST}:3000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_buffering off;
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /health {
-        return 200 "ok";
-        add_header Content-Type text/plain;
-    }
-}
-```
-
-In the manifest, `API_SERVICE_HOST: ${ENV_NAME}-api` resolves to the k8s service name (e.g., `sandbox-api`), giving nginx a stable internal DNS target.
-
-### Eve-Migrate for Schema Management
-
-Eve provides a purpose-built migration runner at `public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest`. It uses plain SQL files with timestamp prefixes, tracked in a `schema_migrations` table (idempotent, checksummed, transactional).
-
-```
-db/
-  migrations/
-    20260312000000_initial_schema.sql
-    20260312100000_seed_data.sql
-    20260315000000_add_status_column.sql
-```
-
-Mount migrations into the container via `x-eve.files`. The migrate step in the pipeline runs after deploy (the managed DB must be provisioned first). The image sets no `USER`, so under the `strict` profile give the migrate service `x-eve.security.run_as_user`/`run_as_group`, as in the manifest above.
-
-**Do not use TypeORM, Knex, or Flyway migrations** — they add complexity and diverge from the Eve platform's migration tracking. The eve-migrate runner gives parity between local dev and staging.
-
-### Multi-Stage Dockerfiles
-
-**API Dockerfile** (NestJS/Node):
-
-```dockerfile
-FROM node:22-slim AS base
-WORKDIR /app
-ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
-FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-
-FROM deps AS build
-COPY tsconfig.json ./
-COPY src ./src
-RUN pnpm build
-
-FROM node:22-slim AS production
-WORKDIR /app
-RUN groupadd --gid 1000 node || true && useradd --uid 1000 --gid node --shell /bin/bash --create-home node || true
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY package.json ./
-USER 1000:1000
-ENV NODE_ENV=production PORT=3000
-EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD node -e "fetch('http://localhost:3000/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
-CMD ["node", "dist/main.js"]
-```
-
-**Web Dockerfile** (Vite SPA + nginx):
-
-```dockerfile
-FROM node:22-slim AS build
-WORKDIR /app
-ENV PNPM_HOME="/pnpm" PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-COPY tsconfig.json vite.config.ts index.html ./
-COPY src ./src
-RUN pnpm build
-
-FROM nginx:alpine AS production
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/templates/default.conf.template
-EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-**Conventions**: node:22-slim base, pnpm via corepack, frozen lockfiles, numeric non-root user (API), health checks on both services. Write `USER` as a number (`USER 1000:1000`, the `node` user), not a name: the `strict` profile reads the user from the image config and refuses a name, root or no `USER`. The stock nginx image runs as root, hence the `x-eve.security` opt-out on `web` above.
+Load `references/spa-api-managed-db.md` for the complete manifest, nginx
+template, Dockerfiles, migration layout, managed TLS rules, and transaction-
+scoped RLS implementation.
 
 ## Database Design
 
-### Provisioning
+Declare Postgres with `x-eve.role: managed_db` and consume
+`${managed.db.url}`. Keep its managed `sslmode=verify-full`; the platform
+injects the trust bundle and client environment. Never disable certificate
+verification.
 
-Declare a managed database in the manifest:
+Use timestamped plain-SQL migrations, design tenant-owned tables with
+`org_id TEXT NOT NULL` and RLS from the start, and set tenant context inside a
+transaction before every query. Inspect before changing with `eve db schema`
+and `eve db sql --env <env>`. Keep product data separate from agent memory and
+coordination storage.
 
-```yaml
-services:
-  db:
-    x-eve:
-      role: managed_db
-      managed:
-        class: db.p1
-        engine: postgres
-        engine_version: "16"
-        roles:
-          - name: app
-            grants: readwrite
-```
-
-Long-running services connect as a declared role (`${managed.db.roles.app.url}`); only migration jobs use the owner URL (`${managed.db.url}`), which the `strict` profile refuses in long-running services. A component that migrates its own schema, such as an auth server, gets a schema-owner role (`grants: { schema: auth, owner: true }`). Each login gets its class's connection limit (25/100/200 for `db.p1`/`p2`/`p3`): size pools to fit.
-
-### Schema Strategy
-
-1. **Migrations are plain SQL.** Create timestamp-prefixed SQL files in `db/migrations/` (e.g., `20260312000000_initial.sql`). Run via eve-migrate (see Reference Architecture above). Never modify production schemas by hand.
-2. **Design for RLS from the start.** Every table with multi-tenant data gets `org_id TEXT NOT NULL`, RLS policies, and a `DatabaseService` that sets the session context (see below). Retrofitting row-level security is painful.
-3. **Inspect before changing.** Use `eve db schema` to examine current schema. Use `eve db sql --env <env>` for ad-hoc queries during development.
-4. **Separate app data from agent data.** Use distinct schemas or naming conventions. App tables serve the product; agent tables serve memory and coordination (see `eve-agent-memory` for storage patterns).
-
-### RLS + DatabaseService Pattern (NestJS)
-
-The proven pattern for multi-tenant RLS in NestJS uses raw `pg.Pool` (not an ORM) with a request-scoped transaction wrapper:
-
-**`db.ts`** — Pool configuration with startup health check:
-
-```typescript
-import { Pool } from 'pg';
-
-const databaseUrl = process.env.DATABASE_URL || 'postgresql://app:app@localhost:5432/myapp';
-const parsed = new URL(databaseUrl);
-const isLocal = ['localhost', '127.0.0.1'].includes(parsed.hostname);
-
-export const pool = new Pool({
-  connectionString: databaseUrl,
-  ssl: !isLocal ? { rejectUnauthorized: false } : undefined,
-});
-```
-
-**`database.service.ts`** — Transaction wrapper with RLS context:
-
-```typescript
-import { Injectable } from '@nestjs/common';
-import type { PoolClient, QueryResult, QueryResultRow } from 'pg';
-import { pool } from '../db';
-
-export interface DbContext {
-  org_id: string;
-  user_id?: string;
-}
-
-@Injectable()
-export class DatabaseService {
-  async withClient<T>(context: DbContext | null, fn: (client: PoolClient) => Promise<T>): Promise<T> {
-    const client = await pool.connect();
-    try {
-      await client.query('BEGIN');
-      if (context?.org_id) {
-        await client.query("SELECT set_config('app.org_id', $1, true)", [context.org_id]);
-      }
-      if (context?.user_id) {
-        await client.query("SELECT set_config('app.user_id', $1, true)", [context.user_id]);
-      }
-      const result = await fn(client);
-      await client.query('COMMIT');
-      return result;
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
-  }
-
-  async query<T extends QueryResultRow>(ctx: DbContext | null, sql: string, params?: unknown[]): Promise<QueryResult<T>> {
-    return this.withClient(ctx, (client) => client.query<T>(sql, params));
-  }
-
-  async queryOne<T extends QueryResultRow>(ctx: DbContext | null, sql: string, params?: unknown[]): Promise<T | null> {
-    const result = await this.query<T>(ctx, sql, params);
-    return result.rows[0] ?? null;
-  }
-}
-```
-
-**Why this pattern?**
-- `set_config('app.org_id', $1, true)` is transaction-scoped — it automatically clears when the connection returns to the pool.
-- Every database access goes through `withClient`, guaranteeing RLS context is set before any query.
-- No ORM overhead — raw SQL gives full control over query plans and joins.
-- The `DbContext` object is derived from `req.user` (set by Eve auth middleware).
-
-**RLS policy template** (applied per table in migration SQL):
-
-```sql
-ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY my_table_select ON my_table FOR SELECT
-  USING (current_setting('app.org_id', true) IS NOT NULL
-    AND org_id = current_setting('app.org_id', true));
-
-CREATE POLICY my_table_insert ON my_table FOR INSERT
-  WITH CHECK (current_setting('app.org_id', true) IS NOT NULL
-    AND org_id = current_setting('app.org_id', true));
-
-CREATE POLICY my_table_update ON my_table FOR UPDATE
-  USING (current_setting('app.org_id', true) IS NOT NULL
-    AND org_id = current_setting('app.org_id', true))
-  WITH CHECK (current_setting('app.org_id', true) IS NOT NULL
-    AND org_id = current_setting('app.org_id', true));
-```
-
-**Table conventions**: Every table gets `id UUID PRIMARY KEY DEFAULT gen_random_uuid()`, `org_id TEXT NOT NULL`, `created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()`, and `updated_at TIMESTAMPTZ` (with a trigger) on mutable tables. Enable `pgcrypto` extension in the first migration.
-
-### Access Patterns
-
-| Who Queries | How | Auth |
-|-------------|-----|------|
-| App service | `${managed.db.url}` in service env | Connection string injected at deploy |
-| Agent via CLI | `eve db sql --env <env>` | Job token scopes access |
-| Agent via RLS | SQL with `app.current_user_id()` | Session context set by runtime |
+Load `references/spa-api-managed-db.md` for the managed DB declaration,
+transaction wrapper, RLS policy template, and access conventions.
 
 ## Build and Release Pipeline
 
@@ -997,6 +710,7 @@ Design services with health endpoints. Eve polls health to determine deployment 
 
 ## Cross-References
 
+- **SPA + API + managed Postgres implementation**: `references/spa-api-managed-db.md`
 - **Manifest syntax and options**: `eve-manifest-authoring`
 - **Deploy commands and error resolution**: `eve-deploy-debugging`
 - **Secret management and access groups**: `eve-auth-and-secrets`

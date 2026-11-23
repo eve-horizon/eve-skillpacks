@@ -94,7 +94,7 @@ New agent-execution features go in the shared module, never in a single runtime.
 | `gemini`   | `gemini`  | --       | @google/gemini-cli                                   |
 | `code`     | `code`    | `coder`  | @just-every/code. Use `coder` on host to avoid VS Code clash |
 | `codex`    | `codex`   | --       | @openai/codex                                        |
-| `pi`       | `pi`      | --       | Pi CLI (integration in progress)                     |
+| `pi`       | `pi`      | --       | Supported BYOK multi-provider harness; managed-model routing is pending |
 
 Do not parse `harness:variant` syntax. Use `harness_options.variant` instead.
 
@@ -160,15 +160,18 @@ When a job has `git` configuration, the worker:
 
 ## Worker Image and Toolchains
 
-The default worker image is `base` (~800MB), which includes Node.js, git, gh, kubectl,
-kaniko, buildctl, and all harness binaries (claude-code, codex, gemini-cli, cc-mirror,
-code, bd, skills). Most agent jobs need nothing beyond this.
+The source release runner is
+`ghcr.io/eve-horizon/eve-horizon/worker:<platform-version>`. It contains
+the runner and harness binaries and is one of the seven service images
+published by `release-v*`. Pin it through `EVE_RUNNER_IMAGE` to the deployment's
+platform version. Most agent jobs need nothing beyond this image.
 
 ### Toolchain-on-Demand
 
-Toolchains (Python, Rust, Java, Kotlin, ffmpeg/whisper) are delivered as init containers
-rather than baked into the worker image. This replaces the previous `full` image (2.6GB)
-approach.
+Toolchains (Python, Rust, Java, Kotlin, ffmpeg/whisper) are delivered as
+separately published images and injected as init containers rather than baked
+into alternate worker images. Public `worker-full` and language-specific worker
+variants are obsolete, unsupported release paths.
 
 Available toolchains:
 
@@ -218,9 +221,9 @@ workflows:
         toolchains: [media, python]    # override agent default
 ```
 
-Toolchain precedence: workflow step `toolchains` overrides agent `toolchains` overrides
-empty (base-only). The `full` image remains available via `EVE_WORKER_VARIANT=full` for
-backwards compatibility.
+Toolchain precedence: workflow step `toolchains` overrides agent `toolchains`
+overrides empty (runner only). Do not select a worker variant as a fallback;
+diagnose provisioning and the configured toolchain prefix/tag.
 
 ### Inline Runtime Provisioning
 
@@ -291,7 +294,14 @@ Verify managed auth with:
 
 ```bash
 eve auth verify --harness claude --project proj_xxx --json
+eve auth verify --harness codex --project proj_xxx --json
 ```
+
+Code/Codex attempts log redacted `codex_auth_selected` with the source
+(`api_key`, `auth_json`, `oauth_access_token`, or `preexisting`), secret key
+name, and scope when available. The attempt receipt carries the same `auth`
+selection; inspect `eve job diagnose <id>` or `eve job receipt <id>` after the
+runner exits. Credential values are never included.
 
 ### Zai Harness
 
@@ -383,26 +393,27 @@ If a `variants/<variant>` directory exists, it overlays the base config.
 5. **Harness CLI normalization** — `packages/shared/src/harnesses/model-aliases.ts`:
    add aliases when a model has multiple user-facing forms (e.g. `opus4.7`,
    `opus-4-7`, `claude-opus-4-7`) that should all resolve to the harness's
-   own short alias. Per-job + chat-hint model overrides flow through the
+   pinned model ID. Opus 4.7 aliases resolve to `claude-opus-4-7`, not the
+   moving `opus` alias. Per-job + chat-hint model overrides flow through the
    normalizer before reaching the harness CLI.
 
 ### Currently Registered Models
 
-Default rate card (`DEFAULT_RATE_CARD_EFFECTIVE_AT = 2026-04-29`):
+Default rate card (`DEFAULT_RATE_CARD_EFFECTIVE_AT = 2026-09-23`):
 
 | Provider  | Models                                                                                              |
 |-----------|-----------------------------------------------------------------------------------------------------|
-| anthropic | `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`, `claude-sonnet-4` |
-| openai    | `gpt-5.5`, `o3`                                                                                     |
+| anthropic | `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5-5`, `claude-opus-5`, `claude-sonnet-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-4-6`, `claude-opus-4-5`, `claude-sonnet-4-5`, `claude-haiku-4-5`, `claude-sonnet-4` |
+| openai    | `gpt-6-astra`, `gpt-5.5`, `o3` |
 | zai       | `glm-5`, `glm-5-code`                                                                               |
 
 `claude-opus-4-7` priced at $5/$25 in/out per million tokens, $0.50 cache_read,
 $6.25 cache_write (matches 4.6). `gpt-5.5` priced at $5/$30 in/out, $0.50
 cache_read, $30 reasoning.
 
-Pinned harness binary versions (worker + agent-runtime Dockerfiles): cc-mirror
-2.1.0, claude-code 2.1.123, codex 0.125.0, gemini-cli 0.40.0,
-just-every/code 0.6.96, pi 0.70.6, skills 1.5.3.
+Worker Dockerfile pins Claude Code 2.1.280 and Codex 0.156.1; other harness
+package arguments remain on their existing release tracks. Check the deployed
+image digest before treating a local source pin as a hosted version.
 
 ---
 
@@ -419,8 +430,8 @@ mclaude --print --verbose --output-format stream-json \
 - Model: `$CLAUDE_MODEL` or `sonnet` (default fallback changed from `opus` to `sonnet`)
 - Skills: mclaude installs from `skills.txt` into `.agents/skills/` at runtime
 - Model aliases: `opus4.7`, `opus-4-7`, `opus-4.7`, `claude-opus-4-7` (and the
-  `anthropic/` provider-prefixed variants) all normalize to Claude Code's `opus`
-  alias via `normalizeClaudeCodeModelAlias`. Per-job and chat-hint model
+  `anthropic/` provider-prefixed variants) all normalize to the pinned
+  `claude-opus-4-7` ID via `normalizeClaudeCodeModelAlias`. Per-job and chat-hint model
   overrides feed through this normalizer before reaching the harness CLI.
 
 ### zai
@@ -460,17 +471,21 @@ code --ask-for-approval on-request --model <model> \
 
 ## Permission Policies
 
-| Policy      | mclaude/claude/zai                    | gemini                     | code/codex                      |
-|-------------|---------------------------------------|----------------------------|---------------------------------|
-| `default`   | `--permission-mode default`           | `--approval-mode default`  | `--ask-for-approval on-request` |
-| `auto_edit` | `--permission-mode acceptEdits`       | `--approval-mode auto_edit`| `--ask-for-approval on-failure` |
-| `never`     | `--permission-mode dontAsk`           | (fallback to default)      | `--ask-for-approval never`      |
-| `yolo`      | `--dangerously-skip-permissions`      | `--yolo`                   | `--ask-for-approval never`      |
+| Policy      | mclaude/claude/zai                    | gemini                     | code/codex                      | pi |
+|-------------|---------------------------------------|----------------------------|---------------------------------|----|
+| `default`   | `--permission-mode default`           | `--approval-mode default`  | `--ask-for-approval on-request` | autonomous; warning |
+| `auto_edit` | `--permission-mode acceptEdits`       | `--approval-mode auto_edit`| `--ask-for-approval on-failure` | autonomous; warning |
+| `never`     | `--permission-mode dontAsk`           | (fallback to default)      | `--ask-for-approval never`      | autonomous |
+| `yolo`      | `--dangerously-skip-permissions`      | `--yolo`                   | `--ask-for-approval never`      | autonomous |
 
 Sandbox flags applied automatically by `eve-agent-cli`:
 - Claude/mclaude/zai: `--add-dir <workspace>`
 - Code/Codex: `--sandbox workspace-write -C <workspace>`
 - Gemini: `--sandbox`
+
+Pi has no built-in permission gates. Select it only when autonomous execution
+is acceptable; `default` and `auto_edit` emit a warning rather than adding a
+gate.
 
 ---
 
@@ -706,7 +721,7 @@ in addition to the existing `cost-by-agent`.
 
 ```
 eve-agent-cli \
-  --harness <harness>           # mclaude, claude, zai, gemini, code, codex
+  --harness <harness>           # mclaude, claude, zai, gemini, code, codex, pi
   --permission <policy>         # default, auto_edit, never, yolo
   --output-format stream-json
   --workspace <workspacePath>

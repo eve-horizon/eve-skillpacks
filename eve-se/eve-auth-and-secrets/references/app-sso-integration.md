@@ -7,8 +7,8 @@ Add Eve SSO login to Eve-deployed apps. Two shared packages -- `@eve-horizon/aut
 ## Contents
 
 - [Auto-Injected Environment Variables](#auto-injected-environment-variables)
-- [Backend API (@eve-horizon/auth)](#backend-api-eveauth)
-- [Frontend API (@eve-horizon/auth-react)](#frontend-api-eveauth-react)
+- [Backend API (@eve-horizon/auth)](#backend-api-eve-horizonauth)
+- [Frontend API (@eve-horizon/auth-react)](#frontend-api-eve-horizonauth-react)
 - [Types](#types)
 - [Verification Strategies](#verification-strategies)
 - [Token Flow](#token-flow)

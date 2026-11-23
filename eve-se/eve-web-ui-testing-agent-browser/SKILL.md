@@ -7,6 +7,16 @@ description: Web UI testing and browser automation. Use Vercel agent-browser for
 
 Use `agent-browser` as the default CLI for deterministic UI checks in app repos. Inside the Eve Horizon repo itself, prefer the repo-pinned Playwright wrapper (see "Eve Horizon Repo Wrapper" below).
 
+For a browser check running **inside an Eve job**, declare
+`toolchains: [python, browser]` on the script or agent workflow/pipeline step and
+run `/opt/eve/toolchains/browser/bin/eve-browser-python script.py`. This is the
+supported linux/amd64 headless runtime with bundled Playwright 1.63.0 and
+matching Chromium. Assert text and measured HTML/SVG geometry, then attach
+the screenshot and a receipt to the job. Use `eve job diagnose <id> --json`
+for `runtime_meta.browser` and `runtime_meta.toolchains`; browser setup
+failures report `toolchain_unavailable`. Check that the owning deployment has
+the supported runtime before using this path.
+
 ## Install agent-browser
 
 ```bash

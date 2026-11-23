@@ -363,7 +363,7 @@ eve skills install [source] [--skip-installed]          # Install skill packs
 ```
 
 **Resolution order** (without a source argument):
-1. **Pack-based** -- if `.eve/manifest.yaml` defines `x-eve.packs`, skills are installed from those packs. Requires a matching `.eve/packs.lock.yaml` (run `eve agents sync` to generate it). Per-pack `install_agents` overrides are supported; the global default comes from `x-eve.install_agents`.
+1. **Pack-based** -- if `.eve/manifest.yaml` defines `x-eve.packs`, each pack is resolved at its matching `.eve/packs.lock.yaml` commit and installed from that checkout, never from a remote default branch (run `eve agents sync` to refresh the lock). Private skill directories are excluded unless the source explicitly targets `private-skills`. Per-pack `install_agents` overrides are supported; the global default comes from `x-eve.install_agents`. Any non-zero installer exit fails the command.
 2. **skills.txt** -- falls back to reading `skills.txt` and installing all entries.
 
 - With source: installs directly from URL, GitHub repo, or local path and persists to `skills.txt`.

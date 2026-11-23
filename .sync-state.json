@@ -1,8 +1,50 @@
 {
   "eve_horizon_path": ".eve-horizon-src",
-  "last_synced_commit": "b5ef3ea47cd8c1d0a4358448d9668bdf687f0ac8",
-  "last_synced_at": "2026-05-13T13:58:00Z",
+  "last_synced_commit": "5694f5b94c176967926a3a0603fdee30574d15ec",
+  "last_synced_at": "2026-10-13T16:09:15Z",
   "sync_log": [
+    {
+      "commit": "5694f5b94c176967926a3a0603fdee30574d15ec",
+      "commit_short": "5694f5b",
+      "synced_at": "2026-10-13T16:09:15Z",
+      "type": "incremental",
+      "summary": "Updated cancellation guidance for descendants that create separate process groups. The implementation tracks descendant PID/start identity through the termination grace period and guards against signalling recycled identities. Source regression demonstrates the group-only escape and verifies the correction. No hosted rollout or release availability asserted."
+    },
+    {
+      "commit": "e6a74f0841ec3448b3d1861a275e236cab816d41",
+      "commit_short": "e6a74f0",
+      "synced_at": "2026-10-13T15:52:26Z",
+      "type": "incremental",
+      "summary": "Synced the single execution lifecycle fix: stage complete workflow graphs before release; bounded cancellation across inline process groups and dedicated runners; terminal-write race guards; executor-owned workspace cleanup honoring retention and session boundaries. Updated jobs and workflow references and added cancellation/cleanup source mappings. Existing task-first routes cover these behaviors. No hosted rollout or release availability asserted."
+    },
+    {
+      "commit": "6db6c3a9a07e017306e0c38f2bca3df29a2836d8",
+      "commit_short": "6db6c3a",
+      "synced_at": "2026-09-27T23:17:08Z",
+      "type": "incremental",
+      "summary": "Audited all 31 public source commits in 8fed3d5..6db6c3a. Verified browser runtime and native-gated GHCR release behavior already distilled in the base; updated workflow script retry claimability, Cloud FS replace/trash and mount containment, addressed-resource permission context, RWO recreate rollout, admin invite/mint scope, Codex credential provenance and verify command, local-only managed DB tenant roles and connection interpolation, pinned Opus 4.7 aliases, current model rate card and worker harness CLI pins. Test/type/comment/merge-only commits added no user capability. Expanded source mappings; no hosted rollout or package availability asserted."
+    },
+    {
+      "commit": "8fed3d57696ca450d3e66cf7e83e582a69b407b6",
+      "commit_short": "8fed3d5",
+      "synced_at": "2026-08-25T17:27:07Z",
+      "type": "verification-only",
+      "summary": "Reviewed 3 source commits after the material behavior sync. CLI and release guidance changes were already reflected in the skillpacks; the remaining watched delta only added historical-status banners to superseded source plans. No further skill content change was required. Repository and source-consistency checks passed, and the baseline advanced to the exact public source head."
+    },
+    {
+      "commit": "416bb755f0675d71ded45a8cf6338d1a90a9929f",
+      "commit_short": "416bb75",
+      "synced_at": "2026-08-25T17:09:07Z",
+      "type": "incremental",
+      "summary": "6-commit CLI, onboarding, and OSS release-alignment sync. Documented eve init's guaranteed main branch and per-commit fallback Git identity; pinned onboarding CLI/skills tools; and captured SHA-pinned AgentPack checkout installation, four-agent defaults, private-skill exclusion, and manifest-pack installer failure propagation. Corrected non-mutating manifest validation, seven-service public release inventory, canonical worker/separate toolchains, retired worker/migrate publishing paths, and Pi Phase 1 guidance. Moved full-stack implementation detail into a progressive reference, made source paths state-driven, and added read-only public repository/source consistency CI while retaining historical provenance guardrails."
+    },
+    {
+      "commit": "cf720e26ee7fd9c4c9b13c590945f6603705b76b",
+      "commit_short": "cf720e2",
+      "synced_at": "2026-08-24T15:45:02Z",
+      "type": "oss-history-rebase",
+      "summary": "Rebased sync tracking onto the canonical public eve-horizon history, whose Initial public release commit does not contain the private-history b5ef3ea baseline. Audited the full public range through cf720e2: July refactors preserve the documented platform surface; the shipped OSS release cutover changes deployment ownership. Updated skillpacks to the three-repo publish-only model, removed repository_dispatch guidance, added canonical-repo guardrails, and made the scheduled source clone credential-free."
+    },
     {
       "commit": "b5ef3ea47cd8c1d0a4358448d9668bdf687f0ac8",
       "commit_short": "b5ef3ea",
@@ -31,69 +73,6 @@
       "synced_at": "2026-03-24T12:30:00Z",
       "type": "incremental",
       "summary": "5-commit incremental sync — per-agent API permissions (already documented), x-eve.cli fix trilogy (CLI metadata in jobs, auto-inject with_apis on direct job creation, auto-discover CLI services from manifest for all agent jobs), binary upload fix. CLI auto-discovery is a significant behavioral change: all agent jobs now automatically get app CLIs on PATH without explicit with_apis. CLI-first philosophy audit: strengthened guidance across agents-teams, app-cli, manifest, manifest-authoring, and fullstack-app-design. Added CLI design checklist."
-    },
-    {
-      "commit": "4721440485f22d22256f598671a4cf11dbc2ade2",
-      "commit_short": "4721440",
-      "synced_at": "2026-03-23T17:01:54Z",
-      "type": "incremental",
-      "summary": "0-commit incremental sync — no new eve-horizon changes since the March 20, 2026 sync. Verified the workspace mirror at .eve-horizon-src and re-ran the state-today compliance checks with no documentation updates required."
-    },
-    {
-      "commit": "4721440485f22d22256f598671a4cf11dbc2ade2",
-      "commit_short": "4721440",
-      "synced_at": "2026-03-20T17:02:29Z",
-      "type": "incremental",
-      "summary": "1-commit incremental sync — documented the fixed org-scoped SSO invite accept flow: GoTrue mailer links now enter via /verify, the SSO broker preserves invite redirect fallbacks, and invited users are sent through /set-password before landing in the target app."
-    },
-    {
-      "commit": "3291d7851fa19fe021be301cb870635f692cfd21",
-      "commit_short": "3291d78",
-      "synced_at": "2026-03-18T17:03:12Z",
-      "type": "incremental",
-      "summary": "3-commit incremental sync — documented shipped app-onboarding groundwork: org-scoped email invites, org member search permissions, and SSO invite redirect preservation via /auth/exchange. Updated auth references and the auth skill; ignored the new proposed plan as roadmap-only."
-    },
-    {
-      "commit": "c43c2ba7bddb72ebcb0499aa1e0d7c8067f19f2a",
-      "commit_short": "c43c2ba",
-      "synced_at": "2026-03-18T12:59:00Z",
-      "type": "incremental",
-      "summary": "1-commit incremental sync — Cloud FS per-mount file operations added at the API layer (mount browse by path, file metadata, download, upload, folder creation). Skillpacks updated to capture the new API surface and align Cloud FS examples with the current CLI."
-    },
-    {
-      "commit": "332486cbe7bb9b73bdcf33e538f36625f90c9834",
-      "commit_short": "332486c",
-      "synced_at": "2026-02-26T10:00:00Z",
-      "type": "incremental",
-      "summary": "32-commit incremental sync — object store + org filesystem (presigned URLs, share tokens, public paths, app object stores), Codex harness fixes (auth, sandbox, streaming), CLI improvements (admin users, --version, first-experience auth, log normalization), worker image tooling (gh, jq)"
-    },
-    {
-      "commit": "e95a226bd3f13a2c4b2ecfc4c5e6fd5e9d61dd05",
-      "commit_short": "e95a226",
-      "synced_at": "2026-02-28T12:00:00Z",
-      "type": "incremental",
-      "summary": "33-commit incremental sync — Slack integration (gateway simulate, provider bootstrap, OAuth install, Block Kit, identity resolution, rate limiting), app SSO (@eve-horizon/auth + @eve-horizon/auth-react, eveUserAuth middleware), GitHub webhook setup, terraform-only infra policy, CLI (chat simulate gateway routing, identity link, integrations expansion, ollama pull/models)"
-    },
-    {
-      "commit": "b3ef2d1d4929fc60664d75b7796fc5181295745e",
-      "commit_short": "b3ef2d1",
-      "synced_at": "2026-03-02T16:00:00Z",
-      "type": "incremental",
-      "summary": "11-commit incremental sync — Eve Auth SDK published to npm (@eve-horizon/auth), full SDK system doc (373 lines), eve-sdk overview doc, enriched user visibility (eve user show), admin membership table improvements, system health degraded-state handling. Sentinel-mgr SSO migration patterns distilled into auth skills."
-    },
-    {
-      "commit": "e893b2a269382768e78facba19be09f86c4b25b4",
-      "commit_short": "e893b2a",
-      "synced_at": "2026-03-04T12:00:00Z",
-      "type": "incremental",
-      "summary": "20-commit incremental sync — Pi coding agent harness (Phase 1), worker org-fs parity (.org/ mount in all execution paths), Pi skill discovery, eve-worker CLI removal, ECR public auto-auth for eve local up, auth-react SSO redirect fix"
-    },
-    {
-      "commit": "b48c37e7e553f56eabaa47c5edeca04ff95c3fe2",
-      "commit_short": "b48c37e",
-      "synced_at": "2026-03-18T12:00:00Z",
-      "type": "incremental",
-      "summary": "120-commit incremental sync — inference simplification (BYOK, ollama/models removed), document ingestion pipeline (ingest CLI, PDF, media processing, agentpack), chat completeness (outbound delivery, progress updates, file materialization, agent aliases, staged dispatch), production hardening (8 features: dedup, retry, cost, observability), private endpoints (Tailscale), worker toolchain-on-demand, app CLI framework, Cloud FS (Google Drive), per-org OAuth (BYOA), managed DB snapshots, invoke parity (shared module), workflow event triggers, step optimization, app undeploy/delete, GCS storage"
     }
   ]
 }

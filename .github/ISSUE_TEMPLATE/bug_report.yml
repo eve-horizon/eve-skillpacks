@@ -1,0 +1,26 @@
+name: Guidance bug
+description: Report stale, unsafe, or incorrect Eve skillpack guidance
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: Report vulnerabilities privately via SECURITY.md, not this form.
+  - type: textarea
+    id: guidance
+    attributes:
+      label: What guidance is incorrect?
+      description: Name the skill/reference and the current claim.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Shipped source evidence
+      description: Link the canonical commit, completed plan, CLI command, or implementation that establishes current behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Explain whether the issue is stale, unsafe, private-scope leakage, or missing routing.

@@ -2,6 +2,7 @@
 .agent/skills
 .claude/skills
 .agent/harnesses/
+.eve-horizon-src/
 .eve-horizon-src/secrets.env
 .pi/
 

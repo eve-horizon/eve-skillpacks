@@ -21,7 +21,19 @@
 eve init [directory] [--template <url>] [--branch <branch>] [--skip-skills]
 ```
 
-Initialize an Eve project. Clones from template if provided, strips `.git`, runs `eve skills install` from `skills.txt` unless `--skip-skills` is set.
+Initialize an Eve project. Clones from a template if provided, strips its
+`.git`, creates the new repository on `main`, and runs `eve skills install`
+from `skills.txt` unless `--skip-skills` is set.
+
+Generated commits use the host's configured Git name and email when available.
+If either field is missing, that field uses the local command fallback
+(`Eve Horizon Starter`, `eve-init@users.noreply.github.com`). This does not
+write to the user's Git configuration. Staging, diff, and commit errors while
+creating the initial starter commit fail init rather than leaving a falsely
+successful bootstrap.
+Skill installation and its follow-up generated commit remain best-effort inside
+`eve init`: failures there are reported as warnings. Run `eve skills install`
+directly when skill installation must be a hard gate.
 
 ## Org
 

@@ -119,7 +119,7 @@ Each scenario is a self-contained markdown document:
 
 Before testing functionality, verify the app is built the Eve way. Every verification suite starts with this checklist:
 
-- [ ] `.eve/manifest.yaml` exists and passes `eve project sync --dry-run`
+- [ ] `.eve/manifest.yaml` exists and passes `eve manifest validate --project <project_id> --path .eve/manifest.yaml`
 - [ ] Manifest follows current conventions (`name` preferred over legacy `project`)
 - [ ] All services have health endpoints reachable via Eve ingress
 - [ ] CLI can interact with every API endpoint (no "UI-only" functionality)
@@ -238,9 +238,13 @@ Verification often reveals issues. The fix/deploy loop:
 
 ```
 discover bug → fix code → commit → tag release-v* → push tag →
-  wait for CI (publish-images → infra dispatch → deploy) →
+  wait for CI to publish all seven service images →
+  instance owner bumps the pinned platform version and deploys from the instance repo →
   re-run failed scenario
 ```
+
+A source `release-v*` tag publishes artifacts only. It must not dispatch to or
+deploy a hosted instance.
 
 ### Local (k3d)
 

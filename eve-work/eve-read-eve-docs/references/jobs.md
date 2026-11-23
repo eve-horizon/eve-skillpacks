@@ -196,6 +196,30 @@ eve job close <job-id> --reason "Done"
 eve job cancel <job-id> --reason "No longer needed"
 ```
 
+### Cancellation
+
+- Executors check job phase before launch, poll every two seconds independently
+  of harness output, and check again before publishing results.
+- On POSIX, cancellation sends `SIGTERM` to the execution process group, then
+  `SIGKILL` after five seconds, including tracked descendants that outlive their
+  parent or start a separate process group. Descendant tracking continues through
+  the grace period; signals to tracked descendants require matching PID/start
+  identities to avoid trusting recycled PIDs.
+- Cancellation wins even when the process exits zero: the execution result is
+  `job_cancelled` with exit code 130. The `eve job wait` CLI uses exit code 125
+  for a cancelled job.
+- Dedicated runners carry cancellation through pod startup, HTTP submission,
+  and completion polling. Cancellation requests pod deletion with a five-second
+  termination grace period and deletion of the attempt PVC.
+- Cancelled attempts preserve refreshed Codex credentials and skip git
+  publication and release hooks. Late completion cannot overwrite a concurrent
+  terminal job phase transition.
+
+Use `eve job show <job-id>` and `eve job result <job-id>` to confirm the outcome.
+The polling and termination intervals require responsive job-state reads;
+database/network stalls or unavailable cleanup APIs can delay completion and
+resource deletion.
+
 ### Monitor Execution
 
 ```bash
@@ -672,6 +696,15 @@ For active jobs, the CLI now exposes the same signals operators previously had t
 - For declared toolchains, `diagnose` renders `runtime_meta.toolchains`
   (`execution_mode`, `requested`, `resolved`, `missing`, `source`) and recent
   provisioning log lines.
+- For browser jobs, inspect `runtime_meta.browser` for the observed Playwright
+  and Chromium versions. Inline agent jobs record the source digest at
+  `runtime_meta.browser.source_image_digest`; inline script jobs use
+  `runtime_meta.toolchains.browser_source_image_digest`. Runner jobs record
+  pulled init-container `runtime_meta.toolchains.image_ids`. For inline
+  execution, set `EVE_RUNTIME_IMAGE_DIGEST` from the deployed service image;
+  for runner mode, record the actual main pod imageID as well as init imageIDs.
+  Missing, incompatible, blocked-override, launch, and init-image failures are
+  setup failures (`toolchain_unavailable`), not page-rendering results.
 - `eve job follow <job-id>` warns after 60s and 120s of silence. If heartbeat lifecycle events are still arriving, it reports the harness as alive but quiet; otherwise it warns that the run may have stalled.
 - `eve agents runtime-status --org <org-id>` now shows stale pods and active-job counts in the tabular output.
 - `eve system status` now renders agent-runtime health alongside API, orchestrator, worker, and queue state when the backend returns it.
@@ -717,6 +750,8 @@ rerunning successful predecessor steps. Use `--from <step-name>` to rerun a
 named step and its downstream dependents. Eve creates replacement child jobs,
 marks the replaced step jobs superseded in `hints`, and rewires dependencies to
 the current replacement jobs.
+Script/action replacements clear stale claim-time assignees so the
+orchestrator can claim them; agent replacements retain their assignment.
 
 Workflow steps support retry in the manifest:
 
@@ -852,6 +887,17 @@ Each job attempt gets an isolated HOME directory at `/tmp/eve/agent-homes/<attem
 - `.eve/harnesses/` — Harness config
 
 All directories are mode 0700. Cleaned up after the attempt completes. This prevents agents from reading credentials written for other jobs or the host system.
+
+## Executor Workspace Cleanup
+
+Inline executors clean their own attempt workspace after finalization, honoring
+`EVE_CLEANUP_WORKSPACE_ON_SUCCESS` and `EVE_CLEANUP_WORKSPACE_ON_FAILURE`.
+Cancelled attempts use the failure setting. Orchestrator cleanup cannot remove
+files on another pod's filesystem.
+
+Cleanup preserves session workspaces (`workspace.mode=session`), the configured
+`WORKSPACE_ROOT` itself, paths outside that root, and symlink aliases, including
+aliases to another attempt under the same root.
 
 ## Not Yet Implemented
 

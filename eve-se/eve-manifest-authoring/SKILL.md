@@ -111,6 +111,7 @@ Reference managed values elsewhere with `${managed.db.<field>}`:
 - Migration jobs (`x-eve.role: job`) use the owner: `${managed.db.url}`. `readwrite`/`readonly` roles cannot create objects.
 - A component that migrates its own schema (such as an auth server) gets a schema-owner role: `grants: { schema: auth, owner: true }`.
 - At most 8 roles per database. Each login gets its class's connection limit (25, 100 or 200 for `db.p1`/`p2`/`p3`); size pools within it.
+- Role names are unique, 1 to 16 characters, start with a lowercase letter (`^[a-z][a-z0-9_]{0,15}$`). Roles need the local managed DB provider; cloud providers reject them.
 
 ## Eve-Migrate for Database Migrations
 
@@ -160,7 +161,7 @@ For local dev, use the same image via Docker Compose for parity:
 # docker-compose.yml
 services:
   migrate:
-    image: ghcr.io/eve-horizon/eve-migrate:latest
+    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:
@@ -374,7 +375,9 @@ browser/client-side code. Services can override these in their `environment` sec
 
 - Env interpolation: `${ENV_NAME}`, `${PROJECT_ID}`, `${ORG_ID}`, `${ORG_SLUG}`, `${COMPONENT_NAME}`.
 - Secret interpolation: `${secret.KEY}` pulls from Eve secrets or `.eve/dev-secrets.yaml`.
-- Managed DB interpolation: `${managed.<service>.<field>}` resolves at deploy time; declared roles use `${managed.<service>.roles.<role>.url}`.
+- Managed DB interpolation: `${managed.<service>.<field>}` resolves at deploy time.
+  Fields include `url`, `host`, `port`, `database`, `username`, `password`,
+  `extensions`, and `roles.<name>.url|username|password` for declared roles.
 - Use `.eve/dev-secrets.yaml` for local overrides; set real secrets via the API for production.
 
 ## Eve extensions

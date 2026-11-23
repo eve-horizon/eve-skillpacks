@@ -13,8 +13,8 @@ System docs often lag behind implementation. Features ship via feat commits with
 
 ## Prerequisites
 
-- The eve-horizon repo must be at `../eve-horizon` (sibling directory)
 - `.sync-state.json` must exist in the repo root (create from template if missing)
+- `.sync-state.json#eve_horizon_path` must point to a readable eve-horizon Git checkout
 - `.sync-map.json` must exist in the repo root
 
 ## Architecture: Orchestrator + Parallel Workers
@@ -36,10 +36,19 @@ The orchestrator reads **lightweight signals** (commit log, plan headers, file s
 
 Read lightweight signals from multiple dimensions to understand what actually shipped.
 
+Resolve the source path once and use it for every source command:
+
+```bash
+HORIZON_PATH="$(jq -r '.eve_horizon_path' .sync-state.json)"
+LAST_SYNCED_COMMIT="$(jq -r '.last_synced_commit' .sync-state.json)"
+test -n "$HORIZON_PATH" && test "$HORIZON_PATH" != "null"
+git -C "$HORIZON_PATH" rev-parse --is-inside-work-tree
+```
+
 #### 1a. Commit log
 
 ```bash
-cd ../eve-horizon && git log --oneline <last_synced_commit>..HEAD
+git -C "$HORIZON_PATH" log --oneline "$LAST_SYNCED_COMMIT"..HEAD
 ```
 
 Categorize commits:
@@ -53,13 +62,13 @@ Categorize commits:
 This is the richest signal. Plans describe what shipped, why, and how.
 
 ```bash
-cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- docs/plans/
+git -C "$HORIZON_PATH" diff --stat "$LAST_SYNCED_COMMIT"..HEAD -- docs/plans/
 ```
 
 For each changed plan, read its **header only** (first 15-20 lines) to extract status:
 
 ```bash
-cd ../eve-horizon && head -20 docs/plans/<plan-file>.md
+sed -n '1,20p' "$HORIZON_PATH/docs/plans/<plan-file>.md"
 ```
 
 Categorize:
@@ -76,13 +85,13 @@ New CLI commands, DB migrations, and package changes confirm what shipped and re
 
 ```bash
 # New/changed/removed CLI commands
-cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- packages/cli/src/commands/
+git -C "$HORIZON_PATH" diff --stat "$LAST_SYNCED_COMMIT"..HEAD -- packages/cli/src/commands/
 
 # New DB migrations (table/column names reveal capability shape)
-cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- packages/db/migrations/
+git -C "$HORIZON_PATH" diff --stat "$LAST_SYNCED_COMMIT"..HEAD -- packages/db/migrations/
 
 # Key package changes (new modules, removed modules)
-cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- packages/shared/src/ packages/api/src/ packages/worker/src/ packages/gateway/src/ --stat-name-width=120 | head -50
+git -C "$HORIZON_PATH" diff --stat "$LAST_SYNCED_COMMIT"..HEAD -- packages/shared/src/ packages/api/src/ packages/worker/src/ packages/gateway/src/ --stat-name-width=120 | head -50
 ```
 
 #### 1d. System doc changes
@@ -90,7 +99,7 @@ cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- packages/shar
 Still a useful signal — especially for removals and corrections.
 
 ```bash
-cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- docs/system/ AGENTS.md
+git -C "$HORIZON_PATH" diff --stat "$LAST_SYNCED_COMMIT"..HEAD -- docs/system/ AGENTS.md
 ```
 
 #### 1e. Current CLI surface
@@ -98,7 +107,7 @@ cd ../eve-horizon && git diff --stat <last_synced_commit>..HEAD -- docs/system/ 
 Snapshot the current CLI command modules. This is the ground truth for what agents can invoke.
 
 ```bash
-cd ../eve-horizon && ls packages/cli/src/commands/*.ts
+find "$HORIZON_PATH/packages/cli/src/commands" -maxdepth 1 -name '*.ts' -print | sort
 ```
 
 ### Phase 2: Capability Synthesis (orchestrator)
@@ -158,7 +167,7 @@ For each update identified in Phase 3, create a work item:
 
 - **Title**: `Update <target-file>: <capability name>`
 - **Description** — everything a worker needs to operate independently:
-  - The eve-horizon repo path (`../eve-horizon`)
+  - The eve-horizon repo path resolved from `.sync-state.json#eve_horizon_path`
   - The commit range: `<last_synced_commit>..HEAD`
   - Which plan(s) to read (the shipped plans relevant to this update)
   - Which source files to diff or read (code, system docs)
@@ -195,7 +204,7 @@ Spawn one background worker per work item. Launch them all at once.
 > 3. Run the git diff for relevant source files (code, system docs).
 > 4. If the plan references specific CLI commands or APIs, verify they exist:
 >    ```bash
->    cd ../eve-horizon && ls packages/cli/src/commands/<name>.ts
+>    test -f "$HORIZON_PATH/packages/cli/src/commands/<name>.ts"
 >    ```
 > 5. Distill the shipped capability into the reference doc:
 >    - What it does (from plan + code)
@@ -208,8 +217,8 @@ Spawn one background worker per work item. Launch them all at once.
 #### Worker Instructions: New Reference Doc
 
 > 1. Read the plan(s) that describe this capability.
-> 2. Check for any system doc coverage: `cd ../eve-horizon && cat docs/system/<name>.md` (may not exist).
-> 3. Read the CLI command source if relevant: `cd ../eve-horizon && cat packages/cli/src/commands/<name>.ts`
+> 2. Check for any system doc coverage at `$HORIZON_PATH/docs/system/<name>.md` (may not exist).
+> 3. Read the CLI command source at `$HORIZON_PATH/packages/cli/src/commands/<name>.ts` if relevant.
 > 4. Create a reference doc that follows the conventions of existing references in `eve-work/eve-read-eve-docs/references/`.
 > 5. Include: purpose, CLI commands/flags, manifest config if relevant, key behaviors, constraints.
 > 6. Keep it concise and agent-actionable. These are distillations, not documentation copies.
@@ -249,7 +258,7 @@ Spawn one background worker per work item. Launch them all at once.
 > 2. Read the shipped plan(s) listed in your task for context on what changed.
 > 3. List current CLI command modules:
 >    ```bash
->    cd ../eve-horizon && ls packages/cli/src/commands/*.ts
+>    find "$HORIZON_PATH/packages/cli/src/commands" -maxdepth 1 -name '*.ts' -print | sort
 >    ```
 > 4. Scan the skill for stale claims:
 >    - "No dedicated X" / "X not available" / "not yet supported" — check if X now exists.
@@ -287,10 +296,10 @@ project-slug-agent-name. Declared in manifest under `agents[].alias`. Resolved
 at chat dispatch time. Status: Implemented.
 
 ## Primary Source
-Read the plan: cd ../eve-horizon && cat docs/plans/agent-aliases-plan.md
+Read the plan: `$HORIZON_PATH/docs/plans/agent-aliases-plan.md`
 
 ## Code Confirmation
-The agents CLI was updated: cd ../eve-horizon && git diff <commit>..HEAD -- packages/cli/src/commands/agents.ts
+The agents CLI was updated: `git -C "$HORIZON_PATH" diff <commit>..HEAD -- packages/cli/src/commands/agents.ts`
 New migration: packages/db/migrations/00076_add_agent_alias.sql
 
 ## Target
@@ -311,16 +320,27 @@ Once all update work items are done:
 
 1. Get current HEAD:
    ```bash
-   cd ../eve-horizon && git rev-parse HEAD
+   git -C "$HORIZON_PATH" rev-parse HEAD
    ```
-2. Run state-today and progressive-access checks:
+2. Run the state-today check before recording the cascade:
    ```bash
    ./private-skills/sync-horizon/scripts/check-state-today.sh
    ```
 3. Update `.sync-state.json`:
    - Set `last_synced_commit` to the HEAD hash
    - Set `last_synced_at` to current ISO timestamp
-   - Append to `sync_log` (keep last 10 entries)
+   - Prepend a sync-log entry, sort entries newest-first, and keep the latest 10
+4. Run the complete deterministic checks twice after the state update. The
+   second pass must be a no-op and produce the same successful result:
+   ```bash
+   ./private-skills/sync-horizon/scripts/check-state-today.sh
+   python3 scripts/check-repository.py
+   python3 scripts/check-source-sync.py --source "$HORIZON_PATH"
+
+   ./private-skills/sync-horizon/scripts/check-state-today.sh
+   python3 scripts/check-repository.py
+   python3 scripts/check-source-sync.py --source "$HORIZON_PATH"
+   ```
 
 ### Phase 7: Report (orchestrator)
 

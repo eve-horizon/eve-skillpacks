@@ -17,7 +17,8 @@ Use this after a developer has run `eve init` and needs to configure the project
 
 The user has already run:
 ```bash
-npm install -g @eve-horizon/cli
+npm install -g @eve-horizon/cli@0.2.73
+npm install -g skills@1.5.23
 eve init my-project
 cd my-project
 ```
@@ -32,7 +33,7 @@ eve --version
 
 If this fails, the CLI wasn't installed. Have them run:
 ```bash
-npm install -g @eve-horizon/cli
+npm install -g @eve-horizon/cli@0.2.73
 ```
 
 ## Step 2: Profile Setup
@@ -198,7 +199,7 @@ Note: If the environment has a `pipeline` configured in the manifest, `eve env d
 
 ### "eve: command not found"
 ```bash
-npm install -g @eve-horizon/cli
+npm install -g @eve-horizon/cli@0.2.73
 ```
 
 ### "Not authenticated"
