@@ -382,6 +382,7 @@ See `references/skills-system.md`.
 - **Custom roles** are additive overlays on member/admin/owner (no deny rules).
 - **Policy-as-code** via `.eve/access.yaml` enables reviewable, CI-friendly access config.
 - **Fail fast on provisioning errors** -- swallow no errors, fix root causes.
+- **Security profiles** (`legacy` deprecated, `audit`, `strict`) decide whether hardening rules are recorded or enforced; build every app so it also runs under `strict`.
 
 ## Reference Index
 
@@ -395,6 +396,7 @@ See `references/skills-system.md`.
 | Agents, teams, chat | `references/agents-teams.md` |
 | Pipelines + workflows | `references/pipelines-workflows.md` |
 | Secrets + auth | `references/secrets-auth.md` |
+| Security profiles + building for strict | `references/security-profiles.md` |
 | Skills system | `references/skills-system.md` |
 | Deploy + debug | `references/deploy-debug.md` |
 | Harnesses | `references/harnesses.md` |

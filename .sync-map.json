@@ -44,9 +44,15 @@
     "docs/plans/app-org-access-and-admin-invites-plan.md": "eve-work/eve-read-eve-docs/references/integrations.md",
     "docs/plans/magic-link-confirmation-interstitial-plan.md": "eve-work/eve-read-eve-docs/references/secrets-auth.md",
     "docs/plans/magic-link-email-silent-drop-plan.md": "eve-work/eve-read-eve-docs/references/observability.md",
-    "docs/plans/job-token-path-and-mount-scope-plan.md": "eve-work/eve-read-eve-docs/references/jobs.md"
+    "docs/plans/job-token-path-and-mount-scope-plan.md": "eve-work/eve-read-eve-docs/references/jobs.md",
+    "docs/system/security-profiles.md + docs/system/egress-policies.md + docs/system/runner-pods.md": "eve-work/eve-read-eve-docs/references/security-profiles.md",
+    "docs/system/db.md": "eve-work/eve-read-eve-docs/references/database-ops.md"
   },
   "skill_triggers": {
+    "docs/system/security-profiles.md": ["eve-work/eve-read-eve-docs", "eve-se/eve-manifest-authoring", "eve-se/eve-deploy-debugging", "eve-se/eve-auth-and-secrets", "eve-design/eve-fullstack-app-design"],
+    "docs/system/egress-policies.md": ["eve-se/eve-manifest-authoring", "eve-se/eve-deploy-debugging", "eve-design/eve-agentic-app-design"],
+    "docs/system/runner-pods.md": ["eve-se/eve-pipelines-workflows", "eve-work/eve-job-debugging"],
+    "docs/system/db.md": ["eve-se/eve-manifest-authoring", "eve-design/eve-fullstack-app-design"],
     "docs/system/agents.md": ["eve-se/eve-bootstrap", "eve-work/eve-read-eve-docs"],
     "docs/system/manifest.md": ["eve-se/eve-manifest-authoring"],
     "docs/system/pipelines.md": ["eve-se/eve-pipelines-workflows"],

@@ -183,6 +183,23 @@ triggers:
   - workflow scope
   - step scope
   - EVE_PROJECT_ID
+  - security profile
+  - strict profile
+  - building for strict
+  - eve doctor security
+  - eve system security profile
+  - legacy profile deprecation
+  - x-eve.security
+  - run_as_user
+  - pod security
+  - x-eve.egress.hosts
+  - egress allow list
+  - ingress isolation
+  - implicit public ingress
+  - managed db roles
+  - schema owner role
+  - connection limits
+  - checkout settings
 ---
 
 # Eve Read Docs (Load First)
@@ -212,7 +229,7 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
   - `references/cli-jobs.md` (jobs and execution controls, per-job harness/env overrides, app-link injection via `--with-links`, scoped job tokens via `jobs.token_scope`)
   - `references/cli-pipelines.md` (builds, releases, pipelines, workflows)
   - `references/cli-deploy-debug.md` (deploy, recovery, local stack, CLI troubleshooting, env logs follow/filter, env diagnose --request, traces query)
-- Manifest authoring, config structure, app CLI framework, cross-project app links (`x-eve.app_links`), toolchain declarations, cloud FS mounts, per-org OAuth, app undeploy/delete, custom domains, public TCP ingress (`x-eve.tcp_ingress`), stable egress (hostNetwork v2), workflow env_overrides + conditional steps + step-level harness/harness_options + step git controls + retry tails + file refs + Slack notifications + resource ref policies, manifest-driven service token permissions, `x-eve.branding` (logo/color/From-name), `x-eve.auth.login_method` (`magic_link`), `x-eve.auth.self_signup`, `x-eve.auth.invite_requires_password`, `x-eve.auth.org_access`, `x-eve.auth.domain_signup` v2 rule list (`[{domain, target_org, role}]`), `x-eve.auth.allowed_redirect_origins`, `jobs.token_scope` axes (`orgfs`/`orgdocs`/`envdb`/`cloud_fs`): `references/manifest.md`
+- Manifest authoring, config structure, app CLI framework, cross-project app links (`x-eve.app_links`), toolchain declarations, cloud FS mounts, per-org OAuth, app undeploy/delete, custom domains, public TCP ingress (`x-eve.tcp_ingress`), stable egress (hostNetwork v2), workflow env_overrides + conditional steps + step-level harness/harness_options + step git controls + retry tails + file refs + Slack notifications + resource ref policies, manifest-driven service token permissions, `x-eve.branding` (logo/color/From-name), `x-eve.auth.login_method` (`magic_link`), `x-eve.auth.self_signup`, `x-eve.auth.invite_requires_password`, `x-eve.auth.org_access`, `x-eve.auth.domain_signup` v2 rule list (`[{domain, target_org, role}]`), `x-eve.auth.allowed_redirect_origins`, `jobs.token_scope` axes (`orgfs`/`orgdocs`/`envdb`/`cloud_fs`), explicit `x-eve.ingress.public` on every service with ports, `x-eve.security` (Pod Security user/opt-outs), `x-eve.egress.hosts`, managed DB `roles` (incl. schema owner): `references/manifest.md`
 - Pipelines, workflows, triggers, event-driven automation, auto-trigger, event/app/app_link triggers, workflow input forwarding, step optimization, per-step `with_apis`, workflow env_overrides + conditional steps + step-level harness + retry-failed + file refs + Slack notifications, event→trigger observability (trigger_match_count, triggers_evaluated), scoped job tokens (workflow/step/invocation scope intersection into `jobs.token_scope`): `references/pipelines-workflows.md` + `references/events.md`
 - Job lifecycle, scheduling, execution debugging, agent-native monitoring, production hardening, per-job HOME isolation, per-job harness/env overrides, app-link env/CLI injection, learning loop (`system.job.attempt.completed`, carryover context), stuck-job prevention + stale recovery + env-gate scope, scoped job tokens (`jobs.token_scope` axes: `orgfs`/`orgdocs`/`envdb`/`cloud_fs`): `references/jobs.md`
 - Build, release, and deployment behavior: `references/builds-releases.md` + `references/deploy-debug.md`
@@ -229,9 +246,10 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 - Build agent-friendly CLIs for app APIs, manifest declaration, bundling, distribution, env var contract: `references/app-cli.md`
 - OAuth app credentials (BYOA), Google Drive mounts, cloud FS browse/search, Slack install smoothing, gateway hot-load, per-org OAuth, chat file materialization, integrations, Slack connect, GitHub setup, identity linking, membership requests, API chat provider (no-op for polling clients; 4 built-in providers: slack, nostr, webchat, api), app org access + in-app admin invites (`POST /auth/app-invites`, `eve org invite --project --redirect-to`, `eve project auth-context`), app-branded invite + magic-link emails (logo, color, From-name via `x-eve.branding`), project-scoped redirect allowlist: `references/integrations.md` + `references/gateways.md`
 - Observability, request diagnostics, service logs (`eve env logs --follow`, `--filter k=v`), traces (`eve traces query`), `eve env diagnose --request <req_id>`, cost tracking, receipts, analytics, event→trigger observability (trigger_match_count, triggers_evaluated, `eve event show`), SES mailer reliability (pre-flight suppression check, bounce webhook, `email_delivery_events` table, `eve admin email bounces list [--recipient|--event-type|--limit|--json]`): `references/observability.md`
-- Database provisioning, migrations, SQL, managed DB operations, managed DB TLS trust (verify-full default + CA bundle injection): `references/database-ops.md`
+- Database provisioning, migrations, SQL, managed DB operations, managed DB TLS trust (verify-full default + CA bundle injection), declared roles and `${managed.<db>.roles.<role>.url}`, schema-owner roles, per-login and per-database connection limits: `references/database-ops.md`
 - Symptom-first troubleshooting across auth, secrets, deploy, jobs, builds, DeployFailure taxonomy + diagnose, Platform Sentinel alert interpretation, stuck-job prevention + stale recovery, SES drops (suppression / bounces / `email_delivery_events`), missing magic-link or invite emails, magic-link confirmation interstitial expectations, custom-domain `SameSite=None` cookies, redirect allowlist mismatches, scoped job token denials, domain-signup v2 migration: `references/troubleshooting.md`
 - LLM Wiki pattern, wiki-maintaining agents, knowledge base architecture, near-instant indexing, CLI enhancements (`eve docs patch`, `diff`, `watch`, `sync`, `list --tree`, `search --path/--context`, bulk-write): `references/llm-wiki.md`
+- Security profiles (`legacy` deprecated, `audit`, `strict`), rule sets and stamps, `eve doctor security` readiness, flipping and rolling back, building an app for `strict` (explicit `x-eve.ingress`, numeric image user / `x-eve.security`, `x-eve.egress.hosts`, ingress isolation and app links, declared DB roles instead of the owner URL, runner pods, reserved env names, checkout settings, write-only secrets, operator rights, environment `approval` removal), strict refusals and fixes: `references/security-profiles.md`
 
 ## Index
 
@@ -264,6 +282,7 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 - `references/app-cli.md` -- App CLI framework: manifest declaration, env var contract, bundling, distribution, image-mode CLIs for cross-project app links, implementation patterns.
 - `references/troubleshooting.md` -- Symptom-first diagnostic tables for auth, secrets, deploy, jobs, builds, network issues, DeployFailure taxonomy + `eve env diagnose`, Platform Sentinel alert interpretation, stuck-job prevention + stale recovery, SES drops (suppression / bounces / `email_delivery_events`), missing magic-link or invite emails, magic-link confirmation interstitial expectations, custom-domain `SameSite=None` cookies, redirect allowlist mismatches, scoped job token denials, domain-signup v2 migration.
 - `references/llm-wiki.md` -- LLM Wiki pattern: two-layer substrate, agent workflow, near-instant indexing, operations (ingest/query/lint/bulk), CLI enhancements (`eve docs patch`, `diff`, `watch`, `sync`, `list --tree`, `search --path/--context`, bulk-write), relationship to Company as Intelligence.
+- `references/security-profiles.md` -- Security profiles (`legacy`/`audit`/`strict`), where they are set, rule sets 1-4 and stamps, `legacy` deprecation (0.1.330/0.1.331), `eve doctor security` and the strict checklist, the building-for-strict checklist (ingress, Pod Security, egress hosts, ingress isolation, managed DB roles and connection limits, jobs and agents, secrets and permissions, environment approval, SSO audience tokens), refusals and fixes.
 
 ## Intent Coverage Matrix
 
@@ -333,6 +352,9 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 | Constrain a job's token to specific paths or mounts | `references/jobs.md`, `references/pipelines-workflows.md`, `references/manifest.md` | `jobs.token_scope` axes (`orgfs`/`orgdocs`/`envdb`/`cloud_fs`), workflow/step intersection |
 | Diagnose missing magic-link / invite email | `references/troubleshooting.md`, `references/observability.md` | `email_delivery_events` row, suppression/bounce reason, interstitial expectation |
 | Migrate domain-signup manifest from v1 to v2 | `references/manifest.md`, `references/secrets-auth.md` | Replace string list with `[{domain, target_org, role}]` rule list, per-rule role |
+| Build or prepare an app for the `strict` profile | `references/security-profiles.md`, `references/manifest.md`, `references/database-ops.md` | Manifest with explicit ingress, numeric user, egress hosts, declared DB roles; readiness check and flip plan |
+| Diagnose a refusal under `strict` | `references/security-profiles.md`, `references/deploy-debug.md`, `references/troubleshooting.md` | Rule id, the manifest or repo change that fixes it, redeploy or resync step |
+| Check security readiness or flip a project's profile | `references/security-profiles.md`, `references/cli.md` | `eve doctor security` findings and checklist, `eve system security profile` command, rollback to `audit` |
 
 ## Hard Rules
 
