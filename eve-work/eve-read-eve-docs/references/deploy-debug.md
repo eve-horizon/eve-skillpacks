@@ -606,16 +606,16 @@ The supported public runner is:
 `ghcr.io/eve-horizon/eve-horizon/worker:<platform-version>`
 
 `release-v*` publishes seven versioned service images: `api`, `sso`,
-`gateway`, `agent-runtime`, `orchestrator`, `worker`, and `dashboard`. Configure
+`gateway`, `agent-runtime`, `orchestrator`, `worker`, and `dashboard`, plus the
+`migrate` image apps run as a job (from 0.1.332). Configure
 the runner with `EVE_RUNNER_IMAGE` and pin it to the same platform release as
 the other services.
 
 The retired `worker-images.yml` tag family (`worker-base`, `worker-full`,
 language variants, and `worker-images/v*`) is not a release contract. Toolchain
-images are separate from the runner image. The standalone `migrate` image is
-also not published by `release-v*`; the hosted deployment migration job uses
-the versioned API image, while the local source stack uses its own worker
-asset.
+images are separate from the runner image. The platform's own migration job
+uses the versioned API image, while the local source stack uses its own worker
+asset; the `migrate` image is for apps.
 
 ## Worker Toolchain-on-Demand
 

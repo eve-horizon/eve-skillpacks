@@ -106,15 +106,12 @@ services:
         capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
 
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: ${managed.db.url}   # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
-      security:          # the migrate image sets no USER; strict needs a numeric one
-        run_as_user: 1000
-        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -386,7 +383,7 @@ For a private custom registry, switch to full object form:
 
 ```yaml
 registry:
-  host: public.ecr.aws/w7c4v0w3
+  host: ghcr.io
   namespace: myorg
   auth:
     username_secret: REGISTRY_USERNAME

@@ -127,7 +127,7 @@ services:
         run_as_group: 1000
 ```
 
-- Check third-party and platform images too, not only your own builds. Eve's migrate image (`eve-horizon/migrate`) sets no `USER`, so a migration service using it needs `run_as_user` (and `run_as_group`) under `strict`.
+- Check third-party and platform images too, not only your own builds. Eve's migrate image (`ghcr.io/eve-horizon/eve-horizon/migrate`, from 0.1.332) runs as `USER 1000:1000` and needs no override; an image without a numeric `USER` needs `run_as_user` (and `run_as_group`) under `strict`.
 - A non-root process that binds a port below 1024 needs `capabilities: [NET_BIND_SERVICE]`; or listen on 1024 and above.
 - Opt-outs: `run_as_root: true` (keeps the other controls), and `capabilities` from `NET_BIND_SERVICE`, `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`. Root or any capability beyond `NET_BIND_SERVICE` puts the namespace at Pod Security `baseline` instead of `restricted`.
 - Unknown fields under `x-eve.security` fail manifest validation.

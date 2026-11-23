@@ -223,15 +223,12 @@ services:
         port: 3000
 
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: ${managed.db.url}             # owner URL: job services only
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
-      security:                                   # the migrate image sets no USER; strict needs a numeric one
-        run_as_user: 1000
-        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -287,7 +284,7 @@ services:
       retries: 5
 
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:
