@@ -29,9 +29,11 @@ hosted instance:
 - CLI, auth SDK, and chat SDK packages use their own npm tag prefixes.
 
 The `worker-images/v*` and `eve-migrate/v*` publishing paths were removed on
-2026-08-25. They are not supported release surfaces. Deployment instances pin
-all seven service images to one platform version; hosted database migrations
-run from that versioned `api` image. Toolchain prefix/tag settings are separate
+2026-08-25. They are not supported release surfaces. From 0.1.332 the `migrate`
+image (the job apps run to apply their SQL migrations) ships with each
+`release-v*` instead. Deployment instances pin all seven service images to one
+platform version; the platform's own database migrations run from that
+versioned `api` image. Toolchain prefix/tag settings are separate
 from the platform version.
 
 ## Build Model
@@ -143,14 +145,14 @@ For BYO/private registries, use full object config:
 
 ```yaml
 registry:
-  host: public.ecr.aws/w7c4v0w3
+  host: ghcr.io
   namespace: myorg
   auth:
     username_secret: REGISTRY_USERNAME    # Secret key for registry username
     token_secret: REGISTRY_PASSWORD       # Secret key for registry token/password
 ```
 
-- `host`: container registry hostname (for example, `public.ecr.aws/w7c4v0w3`, `docker.io`)
+- `host`: container registry hostname (for example, `ghcr.io`, `docker.io`)
 - `namespace`: registry namespace/organization
 - `auth.username_secret`: name of the secret containing the registry username (defaults to `REGISTRY_USERNAME`)
 - `auth.token_secret`: name of the secret containing the registry token/password (defaults to `REGISTRY_PASSWORD`)

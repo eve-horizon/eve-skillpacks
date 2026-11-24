@@ -70,7 +70,7 @@ For multi-stage Dockerfiles, add the labels to the **final** stage (the producti
 registry: "eve"     # Eve-native registry (internal JWT auth)
 registry: "none"    # Disable registry handling (public images)
 registry:           # BYO registry (full object — see section below)
-  host: public.ecr.aws/w7c4v0w3
+  host: ghcr.io
   namespace: myorg
   auth: { username_secret: REGISTRY_USERNAME, token_secret: REGISTRY_PASSWORD }
 ```
@@ -79,7 +79,7 @@ For BYO/private registries, provide:
 
 ```yaml
 registry:
-  host: public.ecr.aws/w7c4v0w3
+  host: ghcr.io
   namespace: myorg
   auth:
     username_secret: REGISTRY_USERNAME
@@ -120,15 +120,12 @@ Use the platform's migration runner instead of Flyway, TypeORM, or Knex. It uses
 ```yaml
 services:
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: ${managed.db.url}   # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
-      security:          # the migrate image sets no USER; strict needs a numeric one
-        run_as_user: 1000
-        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -161,7 +158,7 @@ For local dev, use the same image via Docker Compose for parity:
 # docker-compose.yml
 services:
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: postgres://app:app@db:5432/myapp
     volumes:

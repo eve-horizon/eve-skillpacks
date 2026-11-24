@@ -50,15 +50,12 @@ services:
         capabilities: [NET_BIND_SERVICE, CHOWN, SETUID, SETGID]
 
   migrate:
-    image: public.ecr.aws/w7c4v0w3/eve-horizon/migrate:latest
+    image: ghcr.io/eve-horizon/eve-horizon/migrate:0.1.332
     environment:
       DATABASE_URL: ${managed.db.url}       # owner URL: allowed in role: job services
       MIGRATIONS_DIR: /migrations
     x-eve:
       role: job
-      security:                             # the migrate image sets no USER; strict needs a numeric one
-        run_as_user: 1000
-        run_as_group: 1000
       files:
         - source: db/migrations
           target: /migrations
@@ -79,9 +76,10 @@ Every service with `ports` declares `x-eve.ingress` (`public: true` or
 `public: false`): under the `strict` profile a service without it gets no
 ingress at all. See `eve-read-eve-docs` `references/security-profiles.md`.
 
-The standalone migration runner is an app job service, not one of the seven
-versioned platform service images published by `release-v*`. Pin a known app
-artifact where your release process requires reproducibility.
+The migrate image ships with each platform release (`release-v*`) on GHCR,
+signed like the platform images, and runs as `USER 1000:1000`, so it needs no
+`x-eve.security` override under `strict`. Pin the version of the platform you
+run (or its digest).
 
 ## nginx Proxy
 
