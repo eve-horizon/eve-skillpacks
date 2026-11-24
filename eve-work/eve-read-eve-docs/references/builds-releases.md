@@ -69,7 +69,7 @@ Execution instance of a build. Multiple runs can exist per spec (retries).
 | `id` | string | Run identifier |
 | `build_id` | string | Parent BuildSpec |
 | `status` | enum | `pending` -> `building` -> `completed` / `failed` / `cancelled` |
-| `backend` | string | `buildkit` (K8s default), `buildx` (local), `kaniko` (explicit); unreleased `sandbox` |
+| `backend` | string | `buildkit` (K8s default), `buildx` (local), `kaniko` (explicit); `sandbox` (from 0.1.333) |
 | `runner_ref` | string? | Pod/runner name |
 | `logs_ref` | string? | Log storage reference |
 | `error_message` | string? | Failure reason |
@@ -364,6 +364,7 @@ BuildRun and records the selected backend and artifacts.
 | BuildKit | K8s (default) | Worker runs `buildctl` against the configured BuildKit daemon |
 | Buildx | Local development | Uses local Docker |
 | Kaniko | K8s (explicit selection) | Worker creates a Kubernetes Job; no Docker daemon required |
+| Sandbox BuildKit | K8s (explicit selection, 0.1.333+) | Disposable rootless BuildKit claims; zero-replica pool required |
 
 For workers through 0.1.332, `EVE_BUILD_BACKEND` accepts `buildkit`, `kaniko`,
 `buildx`, or the `docker` alias for Buildx. With no selection, Kubernetes
@@ -380,9 +381,9 @@ hosted instance builds images. Keep that instance's values in its own repo.
 Source: `apps/worker/src/builder/builder.module.ts` and
 `buildkit-builder.ts` at the deployed release commit.
 
-### Unreleased per-build rootless BuildKit
+### Per-build rootless BuildKit (0.1.333+)
 
-The source branch `codex/buildkit-per-build` adds `EVE_BUILD_BACKEND=sandbox`.
+Platform release 0.1.333 adds `EVE_BUILD_BACKEND=sandbox`.
 It is not available in 0.1.332 or earlier. Confirm the deployed release
 contains this backend before selecting it; a local source change or builder
 measurement is not deployment evidence.
