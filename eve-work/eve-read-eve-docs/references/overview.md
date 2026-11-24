@@ -331,8 +331,8 @@ The standard deployment flow:
 3. **Deploy**: apply release to an environment.
 
 Hosted platform releases use a **three-repo model**. The public source repo
-(`eve-horizon/eve-horizon`) is configured to publish seven service images on a `release-v*`
-tag and six toolchains on an independent `toolchain-images/v*` version track,
+(`eve-horizon/eve-horizon`) publishes eight platform images on a `release-v*`
+tag: seven services plus `migrate` (from 0.1.332). It publishes six toolchains on an independent `toolchain-images/v*` version track,
 then stops. Packages use `ghcr.io/eve-horizon/eve-horizon/` and require public
 visibility plus anonymous digest verification. The public
 `eve-horizon/eve-horizon-infra` repo is the reusable
