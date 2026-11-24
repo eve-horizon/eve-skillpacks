@@ -11,8 +11,8 @@
 - `references/jobs.md` or `references/pipelines-workflows.md` for execution and automation tasks.
 
 ## Ask If Missing
-- Confirm whether the user is on staging, local docker, or k3s/k3d stack.
-- Confirm whether local repos are synced and whether `./bin/eh status` has been run.
+- Identify the target environment and its owning deployment repository from the task context; ask only if they are missing.
+- For local source development, check whether `./bin/eh status` has been run. For hosted instances, follow the owner repository's status procedure.
 - Confirm the target org/project context before giving prescriptive commands.
 
 ## Load Eve Docs First
@@ -27,13 +27,13 @@ Then review the references that match your task. Start here for architecture and
 
 ## Check Environment Status
 
-Before ANY build, test, or development activity, run:
+For local Eve source build, test or development activity, run:
 
 ```bash
 ./bin/eh status
 ```
 
-This shows what environments are running, the correct `EVE_API_URL` for each, port configuration, and multi-instance isolation status. Never assume URLs or ports.
+This shows local environments, their `EVE_API_URL`, port configuration and multi-instance isolation status. For hosted operations, load the owning deployment repository first and use its documented status commands, operator wrapper and identity. Local status does not prove a hosted instance is ready. Never assume URLs or ports.
 
 ### Environment Access
 
@@ -59,14 +59,13 @@ If staging infra is broken (API unreachable, SG rules wrong, DNS misconfigured):
 
 If you lack access to the infra repo, escalate to the user -- do not apply a quick fix via AWS CLI.
 
-### Staging Kubeconfig Safety
+### Hosted Kubernetes Access
 
-When operating the hosted staging EKS cluster:
-
-- **Only** use `../deployment-instance/config/kubeconfig.yaml` as kubeconfig.
-- Prefer running operations from `../deployment-instance` via `./bin/eve-infra ...`.
-- **Never** use `~/.kube/eve-hosted.yaml` or the implicit default kube context for staging.
-- If direct `kubectl` is unavoidable, always pass both `--kubeconfig ../deployment-instance/config/kubeconfig.yaml` and `--context arn:aws:eks:eu-west-1:<aws-account-id>:cluster/<cluster-name>`.
+Use the kubeconfig, context and operator wrapper documented by the owning
+deployment repository. That repository governs the target cloud, identity,
+change windows and approvals. Do not copy another instance's paths or use
+an implicit default context. If the owner permits direct `kubectl`, pass
+its explicit kubeconfig and context; otherwise use its wrapper.
 
 ## Developer Quick Start
 
@@ -84,14 +83,13 @@ eve org ensure test-org --slug test-org             # 3. Use the CLI
 
 **What exists**: monorepo with 7 services (API, orchestrator, worker, agent runtime, gateway, SSO, dashboard). Database with orgs, projects, environments, jobs, attempts, agents, teams, threads, integrations, schedules. Full auth stack (SSH login, web auth via GoTrue + SSO broker, service principals, custom roles, access groups, project role resolution). RBAC with policy-as-code and default-deny data plane. Persistent environment deployment to K8s with manifest variable interpolation, HTTP ingress routing, and public TCP ingress for raw protocols. First-class builds (BuildKit), releases, and pipelines (build -> release -> deploy). Job execution with mclaude/claude/zai/gemini/code/codex/pi harnesses via `eve-agent-cli`. BYOK inference model (apps and agents bring their own LLM API keys via secrets; no platform-managed models or inference proxy). Provider registry + model discovery. Agent/team/thread primitives with repo-first sync and AgentPacks (`x-eve.packs`). Chat gateway with Slack + Nostr integration. Agent runtime (primary harness executor for all agent jobs; org-scoped warm pods). Org filesystem sync + org docs. Document ingestion (file upload -> event -> agent processing -> structured output in org docs; content deduplication via fingerprint). Cloud FS integration (Google Drive per-org OAuth, agent file tools). Per-org OAuth credentials (orgs bring their own Google/Slack app credentials via `oauth_app_configs`). Private endpoints (Tailscale networking for reaching private services from cluster pods). App CLI framework (typed CLI wrappers for agent-to-app API interactions, reducing LLM call waste). Cost tracking (execution receipts, resource classes, budgets, balance ledger, OpenCost-backed environment cost snapshots, and daily Sentinel cost summaries). Production hardening (content dedup, dead letter handling, per-phase latency diagnostics, routing decision logging, cost breakdown by agent/team, automatic retry policies, document expiration). Analytics, webhooks, and supervision primitives. Agent app API access (server-side `app_apis` in job hints, `@eve-horizon/auth` SDK). Workflow expansion into job DAGs with `depends_on` step dependencies. Org-aware auth SDK (memberships, org switching, project role resolution via `@eve-horizon/auth-react`). CLI as npm package (`@eve-horizon/cli`) and local `./bin/eh` helpers. K8s local stack via k3d.
 
-### Pre-Deployment Phase
+### Deployment and Compatibility
 
-No deployments to production. No real users. No backwards compatibility concerns. This means:
-
-1. **Simplify aggressively** -- if something can be simpler, make it simpler.
-2. **Refactor without fear** -- no migrations to maintain, no users to break.
-3. **Delete ruthlessly** -- dead code, unused abstractions, speculative features.
-4. **Question everything** -- every abstraction must earn its place.
+Deployment state belongs to each instance. Do not infer that a hosted
+instance has no users or data from the source project's development phase.
+Read its operational instructions before changing it, preserve its
+compatibility and rollback requirements, and use its recorded release
+and checks to establish what is running.
 
 ## What Eve Horizon Is
 

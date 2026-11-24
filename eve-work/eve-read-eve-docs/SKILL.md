@@ -364,4 +364,6 @@ Purpose: provide a compact, public, always-available distillation of Eve Horizon
 - Eve is **API-first**; the CLI only needs `EVE_API_URL`.
 - Do **not** assume URLs, ports, or environment state--ask if unknown.
 - These references describe shipped platform behavior only.
+- Check the deployed release and its source when a capability or backend is version-dependent; distinguish design intent, a successful standalone experiment, and an integrated deployment.
+- For hosted operations, load the owning deployment repository and use its operator commands, identity and change authority. Keep instance-specific findings there.
 - If anything is missing or unclear, ask for the missing inputs.

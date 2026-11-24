@@ -353,9 +353,24 @@ pipelines:
 
 | Backend | Environment | Notes |
 |---------|-------------|-------|
-| BuildKit | K8s (production) | Runs as K8s job, recommended |
+| BuildKit | K8s (default) | Worker runs `buildctl` against the configured BuildKit daemon |
 | Buildx | Local development | Uses local Docker |
-| Kaniko | K8s (fallback) | No Docker daemon required |
+| Kaniko | K8s (explicit selection) | Worker creates a Kubernetes Job; no Docker daemon required |
+
+For the 0.1.331 worker, `EVE_BUILD_BACKEND` accepts `buildkit`, `kaniko`,
+`buildx`, or the `docker` alias for Buildx. With no selection, Kubernetes
+uses BuildKit and local execution uses Buildx. Use values supported by the
+deployed release; a design proposal or a separately tested builder image
+does not establish that the worker selects that backend.
+
+BuildKit's endpoint comes from `EVE_BUILDKIT_ADDR`, then `BUILDKIT_HOST`,
+then `tcp://buildkitd.eve.svc:1234`. Running `buildctl` for each build does
+not itself create a Kubernetes Job. Inspect the BuildRun, worker
+configuration and the owning deployment repository when checking how a
+hosted instance builds images. Keep that instance's values in its own repo.
+
+Source: `apps/worker/src/builder/builder.module.ts` and
+`buildkit-builder.ts` at the deployed release commit.
 
 ## Validation and Errors
 
