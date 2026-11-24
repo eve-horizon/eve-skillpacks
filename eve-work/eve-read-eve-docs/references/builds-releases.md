@@ -384,9 +384,10 @@ SandboxClaim, waits for its rootless pod, runs `buildctl` against that pod
 IP, and deletes the claim after success, failure, cancellation or timeout.
 The matching SandboxWarmPool must have `replicas: 0`. The worker retains
 the local clone and mode-0600 temporary Docker auth config. BuildKit receives
-a disposable context snapshot with `.git` excluded; context and Dockerfile
-paths must remain within the checkout and context respectively; BuildKit uses
-session auth, with no git or registry Secret in the pod. A claim deletion
+a disposable context snapshot with `.git` excluded and relative symlinks
+preserved. Context and Dockerfile paths must remain within the checkout and
+context respectively. BuildKit uses session auth, with no git or registry
+Secret in the pod. A claim deletion
 failure is surfaced even if the push succeeded.
 
 The instance rule `builds.isolated` refuses other backends under `strict`
