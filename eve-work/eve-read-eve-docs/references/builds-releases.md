@@ -69,7 +69,7 @@ Execution instance of a build. Multiple runs can exist per spec (retries).
 | `id` | string | Run identifier |
 | `build_id` | string | Parent BuildSpec |
 | `status` | enum | `pending` -> `building` -> `completed` / `failed` / `cancelled` |
-| `backend` | string | `buildkit` (K8s), `buildx` (local), `kaniko` (fallback) |
+| `backend` | string | `buildkit` (K8s default), `buildx` (local), `kaniko` (explicit); unreleased `sandbox` |
 | `runner_ref` | string? | Pod/runner name |
 | `logs_ref` | string? | Log storage reference |
 | `error_message` | string? | Failure reason |
@@ -357,7 +357,7 @@ pipelines:
 | Buildx | Local development | Uses local Docker |
 | Kaniko | K8s (explicit selection) | Worker creates a Kubernetes Job; no Docker daemon required |
 
-For the 0.1.331 worker, `EVE_BUILD_BACKEND` accepts `buildkit`, `kaniko`,
+For workers through 0.1.332, `EVE_BUILD_BACKEND` accepts `buildkit`, `kaniko`,
 `buildx`, or the `docker` alias for Buildx. With no selection, Kubernetes
 uses BuildKit and local execution uses Buildx. Use values supported by the
 deployed release; a design proposal or a separately tested builder image
@@ -371,6 +371,49 @@ hosted instance builds images. Keep that instance's values in its own repo.
 
 Source: `apps/worker/src/builder/builder.module.ts` and
 `buildkit-builder.ts` at the deployed release commit.
+
+### Unreleased per-build rootless BuildKit
+
+The source branch `codex/buildkit-per-build` adds `EVE_BUILD_BACKEND=sandbox`.
+It is not available in 0.1.332 or earlier. Confirm the deployed release
+contains this backend before selecting it; a local source change or builder
+measurement is not deployment evidence.
+
+For each service image, the worker creates a unique, project-labelled
+SandboxClaim, waits for its rootless pod, runs `buildctl` against that pod
+IP, and deletes the claim after success, failure, cancellation or timeout.
+The matching SandboxWarmPool must have `replicas: 0`. The worker retains
+the local clone and mode-0600 temporary Docker auth config. BuildKit receives
+a disposable context snapshot with `.git` excluded; context and Dockerfile
+paths must remain within the checkout and context respectively; BuildKit uses
+session auth, with no git or registry Secret in the pod. A claim deletion
+failure is surfaced even if the push succeeded.
+
+The instance rule `builds.isolated` refuses other backends under `strict`
+before registry auth is resolved, and records their use under `audit`.
+The sandbox selection never falls back to `EVE_BUILDKIT_ADDR` or
+`BUILDKIT_HOST`, and does not reuse prior builds from another backend.
+
+Deployment owners must supply the namespace, matching template/pool,
+rootless pinned image, runtime class, admission, RBAC and network policy.
+Defaults: namespace `eve-builds`, template/pool `eve-builder`, runtime
+`gvisor`, ready timeout `5m`, total build timeout `30m`. Worker variables
+are `EVE_BUILD_SANDBOX_NAMESPACE`, `EVE_BUILD_SANDBOX_TEMPLATE`,
+`EVE_BUILD_SANDBOX_IMAGE`, `EVE_BUILD_RUNTIME_CLASS`,
+`EVE_BUILD_READY_TIMEOUT`, and `EVE_BUILD_TIMEOUT`. The image/runtime must
+match admission. Never apply an entire instance overlay solely to enable
+a builder: follow that deployment repository's release and rollout flow.
+
+If registry cache is enabled, Eve cache refs stay under the project prefix.
+For external registries, sandbox builds use an `eve-cache-<project-id>` tag
+on the image repository they are authorized to push. Builder local state is
+discarded. Job and BuildRun cancellation are observed during a build;
+operator logs identify the claim and pod for verification and cleanup.
+
+Source: `docs/system/builds.md`, `sandbox-buildkit-builder.ts`,
+`image-builder.service.ts` and the build action in
+`action-executor.service.ts` on that source branch. This is a targeted
+reference update, not a global source-sync baseline advance.
 
 ## Validation and Errors
 
