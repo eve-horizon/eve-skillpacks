@@ -93,7 +93,7 @@ Output images from a successful build.
 | `eve build list [--project <id>]` | List build specs |
 | `eve build show <build_id>` | Build spec details |
 | `eve build create --project <id> --ref <sha> --manifest-hash <hash> [--services s1,s2] [--repo-dir <path>]` | Create a build spec |
-| `eve build run <build_id>` | Start a build run |
+| `eve build run <build_id>` | Create a queued BuildRun record |
 | `eve build runs <build_id>` | List runs for a build |
 | `eve build logs <build_id> [--run <id>] [--follow]` | View build logs |
 | `eve build artifacts <build_id>` | List image artifacts (digests) |
@@ -348,6 +348,14 @@ pipelines:
 1. Deploy to test -- creates release with tag.
 2. Resolve release: `eve release resolve v1.0.0`
 3. Deploy to staging: `eve env deploy staging --inputs '{"release_tag": "v1.0.0"}'`
+
+For actual build execution, run a pipeline's build action. To build without
+releasing or deploying, inspect that pipeline and run
+`eve pipeline run <pipeline> --ref <sha> --only <build-step-id>` with its
+project/environment options. `--only` includes the step's dependencies, so
+check those too. `eve build run` only creates a queued BuildRun record; it
+does not dispatch a worker job. The build action creates and updates its own
+BuildRun and records the selected backend and artifacts.
 
 ## Build Backends
 
